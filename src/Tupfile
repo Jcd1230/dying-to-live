@@ -1,0 +1,15 @@
+include_rules
+
+#LIBS += kazmath/libkazmath.a
+#LIBS += lua53/liblua53.a
+#LIBS += assimp/libassimp.a
+#LIBS += soil/libSOIL.a
+
+#: d2l/*.o $(LIBS) |> @(CC) -o %o %f -lstdc++ @(LIBS) |> ../@(BINARY)
+
+SLIBS += d2l/libd2l.so
+SLIBS += soil/libsoil.so
+SLIBS += assimp/libassimp.so
+SLIBS += kazmath/libkazmath.so
+ODIR = ../
+: $(SLIBS) |> cp -t $(ODIR) %f |> | $(ODIR)/libd2l.so $(ODIR)/libsoil.so $(ODIR)/libassimp.so $(ODIR)/libkazmath.so

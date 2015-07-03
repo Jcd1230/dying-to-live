@@ -1,0 +1,1 @@
+: |> echo "@(LAUNCHER)" > %o; chmod +x %o |> @(BINARY)

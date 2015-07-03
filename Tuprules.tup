@@ -1,0 +1,4 @@
+&LIB = lib
+
+!cc = |> @(CC) -c -fPIC %f -o %o |>
+!link = |> @(CC) -shared -o %o %f |> lib%d.so

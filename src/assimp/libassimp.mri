@@ -1,0 +1,5 @@
+create libassimp.a
+addlib libassimp_thin.a
+save
+end
+

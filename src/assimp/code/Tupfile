@@ -1,0 +1,16 @@
+include_rules
+FLAGS += -fPIC
+FLAGS += -DASSIMP_BUILD_SINGLETHREADED
+FLAGS += -O2 -lstdc++
+FLAGS += -DNDEBUG -D_NDEBUG
+INCLUDES += -I./BoostWorkaround/
+: foreach *.cpp |> @(CXX) $(FLAGS) $(INCLUDES) %f -c -o %o |> %B.o {objs}
+
+LIBS += ../contrib/clipper/libclipper.a
+LIBS += ../contrib/irrXML/libirrXML.a
+LIBS += ../contrib/unzip/libunzip.a
+LIBS += ../contrib/ConvertUTF/libConvertUTF.a
+LIBS += ../contrib/poly2tri/libpoly2tri.a
+LIBS += ../contrib/zlib/libzlib.a
+
+: {objs} |> @(AR) rcs %o %f |> libassimp.a

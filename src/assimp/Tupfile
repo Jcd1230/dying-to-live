@@ -1,0 +1,14 @@
+include_rules
+
+LIBS += contrib/clipper/libclipper.a
+LIBS += contrib/irrXML/libirrXML.a
+LIBS += contrib/unzip/libunzip.a
+LIBS += contrib/ConvertUTF/libConvertUTF.a
+LIBS += contrib/poly2tri/libpoly2tri.a
+LIBS += contrib/zlib/libzlib.a
+LIBS += code/libassimp.a
+
+: $(LIBS) |> @(CXX) -shared -o %o -Wl,--whole-archive %f -Wl,--no-whole-archive |> libassimp.so
+
+#: $(LIBS) |> @(AR) cqT %o %f |> libassimp_thin.a
+#: libassimp_thin.a |> @(AR) -M < libassimp.mri |> libassimp.a

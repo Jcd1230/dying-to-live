@@ -1,0 +1,11 @@
+SOLIBS += ../soil/libsoil.so
+SOLIBS += ../assimp/libassimp.so
+SOLIBS += ../kazmath/libkazmath.so
+
+SLIBS += -L../soil/ -l:libsoil.so
+SLIBS += -L../assimp/ -l:libassimp.so
+SLIBS += -L../kazmath/ -l:libkazmath.so
+
+include_rules
+: foreach *.c |> !cc |> %B.o {objs}
+: {objs} | $(SOLIBS) |> @(CC) -shared -o %o %f -Wl,-rpath,. -lstdc++ @(LIBS) $(SLIBS) |> libd2l.so
