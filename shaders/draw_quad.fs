@@ -9,12 +9,13 @@ uniform highp mat4 VPInv;
 uniform highp mat4 MVPInv;
 uniform highp mat3 MVPInvT;
 uniform highp float time;
+uniform highp float max_specular_intensity;
 
 uniform highp vec3 camera_world_pos;
 
 uniform sampler2D renderColor;
 uniform sampler2D renderNormal;
-uniform sampler2D renderSpecular;
+uniform sampler2D renderMaterial;
 uniform sampler2D renderDepth;
 
 precision highp float;
@@ -245,7 +246,6 @@ void main()
 {
 	vec2 uv = screen_pos;
 	uv = mod(screen_pos, vec2(0.5,0.5)) * 2.0; //QUAD VIEW
-	//uv = screen_pos; // NORMAL
 	
 	float depth = texture(renderDepth, uv).r;
 	vec4 NDC = vec4(1.0);
@@ -256,36 +256,42 @@ void main()
 	vec4 CLIP = MVPInv * NDC;
 	vec3 world_pos = CLIP.xyz/CLIP.w;
 	
+	//Texture accesses
+	vec3 albedo = texture(renderColor, uv).rgb;
 	vec3 normalColor = texture(renderNormal, uv).rgb;
+	vec3 material = texture(renderMaterial, uv).rgb;
+	
+	float specular_intensity = max(0.01, max_specular_intensity * material.r);
+	float specular_weight = material.r;
+	
+
+	
 	vec3 normal = normalize((normalColor - vec3(0.5))*2.0);
 	
 	float hasObject = step(0.01, dot(normalColor, normalColor));
 	
+
 	//Lighting
-	light l1;
+	light l1; //hard coded light
 	l1.pos = vec3(10.0*cos(time), 20.0, 10.0*sin(time));
 	l1.color = vec3(1.0);
 	l1.range = 10.0;
+	
 	vec3 light_to_frag = normalize(l1.pos - world_pos);
 	vec3 frag_to_cam = normalize(world_pos - camera_world_pos);
-	vec3 albedo = texture(renderColor, uv).rgb;
 	vec3 ambient = vec3(0.05) * albedo;
 	vec3 diffuse = clamp(dot(normal,light_to_frag),0.0,1.0) * albedo;
 	
 	vec3 halfAngle = reflect(light_to_frag, normal);
 	float specularAmt = clamp(dot(frag_to_cam, halfAngle), 0.0, 1.0);
-	specularAmt = pow(specularAmt, 100.0);
-	vec3 specular = vec3(specularAmt);
-	//vec3 light_one = vec3(1.0,1.0,1.0);
+	specularAmt = pow(specularAmt, specular_intensity);
+	vec3 specular = vec3(specularAmt) * specular_weight;
 
-	//vec3 final = vec3(0.5+0.5*snoise(vec4(world_pos, time)))*step(0.01, dot(normalColor,normalColor)); //vec3(dot(normal, normalize(world_pos - l1.pos)));
-	
 	vec3 final = clamp(diffuse, ambient, vec3(1.0)) + specular;
 	final *= hasObject;
-	//vec3 upleft = vec3(NDC.xyz);
-	//upleft *= step(0.01, dot(normalColor,normalColor));
+	
 	vec3 upleft = specular * hasObject;
-	//normalColor = vec3(abs(upleft-diffuse.b));
+	
 	// QUAD SPLIT VIEW
 	color =  (diffuse) * (1.0-step(0.5, screen_pos.y)) * (1.0 - step(0.5, screen_pos.x)); //LOWER LEFT
 	color += (normalColor) * (1.0 - step(0.5, screen_pos.y)) * step(0.5, screen_pos.x); //LOWER RIGHT

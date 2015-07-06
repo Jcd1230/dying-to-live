@@ -8,7 +8,10 @@ LIBS += contrib/poly2tri/libpoly2tri.a
 LIBS += contrib/zlib/libzlib.a
 LIBS += code/libassimp.a
 
-: $(LIBS) |> @(CXX) -shared -o %o -Wl,--whole-archive %f -Wl,--no-whole-archive |> libassimp.so
-
+ifndef MAC
+	: $(LIBS) |> @(CXX) -shared -o %o -Wl,--whole-archive %f -Wl,--no-whole-archive |> libassimp.so
+else
+	: $(LIBS) |> @(CXX) -shared -o %o -Wl,-all_load %f -Wl,-noall_load |> libassimp.so
+endif
 #: $(LIBS) |> @(AR) cqT %o %f |> libassimp_thin.a
 #: libassimp_thin.a |> @(AR) -M < libassimp.mri |> libassimp.a

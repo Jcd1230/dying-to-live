@@ -46,7 +46,7 @@ brkpt()
 print("Loading mesh...")
 local cube = ffi.new("struct mesh[1]")
 local quad = ffi.new("struct mesh[1]")
-dtl.loadmesh("../assets/cube.x", cube)
+dtl.loadmesh("../assets/cube_s2.x", cube)
 dtl.loadmesh("../assets/quad.obj", quad)
 print("Loading texture...")
 local tex_diffuse = soil.SOIL_load_OGL_texture(
@@ -57,6 +57,12 @@ local tex_diffuse = soil.SOIL_load_OGL_texture(
 )
 local tex_normal = soil.SOIL_load_OGL_texture(
 	"../assets/brick1n.png",
+	soil.SOIL_LOAD_AUTO,
+	soil.SOIL_CREATE_NEW_ID,
+	bit.bor(soil.SOIL_FLAG_MIPMAPS, soil.SOIL_FLAG_INVERT_Y)
+)
+local tex_material = soil.SOIL_load_OGL_texture(
+	"../assets/brick1s.png",
 	soil.SOIL_LOAD_AUTO,
 	soil.SOIL_CREATE_NEW_ID,
 	bit.bor(soil.SOIL_FLAG_MIPMAPS, soil.SOIL_FLAG_INVERT_Y)
@@ -76,7 +82,7 @@ dtl.gl_GenTextures(4, texRenders)
 local texRender = {
 	Color = texRenders[0],
 	Normal = texRenders[1],
-	Specular = texRenders[2],
+	Material = texRenders[2],
 	Depth = texRenders[3]
 }
 
@@ -94,8 +100,8 @@ dtl.gl_TexImage2D(GL.TEXTURE_2D, 0, GL.RGB, frameRes.w, frameRes.h, 0, GL.RGB, G
 dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST)
 dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST)
 
------------------- SPECULAR
-dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Specular)
+------------------ Material / Specular
+dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Material)
 dtl.gl_TexImage2D(GL.TEXTURE_2D, 0, GL.RGB, frameRes.w, frameRes.h, 0, GL.RGB, GL.UNSIGNED_BYTE, nil)
 -- Nearest Filtering
 dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST)
@@ -114,7 +120,7 @@ dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST)
 -- Attach buffers
 dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT0, GL.TEXTURE_2D, texRender.Color, 0)
 dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT1, GL.TEXTURE_2D, texRender.Normal, 0)
-dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT2, GL.TEXTURE_2D, texRender.Specular, 0)
+dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT2, GL.TEXTURE_2D, texRender.Material, 0)
 dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT3, GL.TEXTURE_2D, texRender.Depth, 0)
 
 --The depth/stencil buffer (for depth/stencil tests)
@@ -179,11 +185,14 @@ render.setShader(mainShader)
 mainShader:newUniform("MVPInv", shader.UNIFORM_MAT4F)
 mainShader:newUniform("time", shader.UNIFORM_1F)
 
-mainShader:newUniform("diffuse", shader.UNIFORM_1I)
-mainShader:setUniform("diffuse", 0)
+mainShader:newUniform("diffuse_t", shader.UNIFORM_1I)
+mainShader:setUniform("diffuse_t", 0)
 
-mainShader:newUniform("normal", shader.UNIFORM_1I)
-mainShader:setUniform("normal", 1)
+mainShader:newUniform("normal_t", shader.UNIFORM_1I)
+mainShader:setUniform("normal_t", 1)
+
+mainShader:newUniform("material_t", shader.UNIFORM_1I)
+mainShader:setUniform("material_t", 2)
 
 mainShader:newUniform("MVP", shader.UNIFORM_MAT4F)
 mainShader:setUniform("MVP", mvp)
@@ -200,31 +209,33 @@ quadShader:newUniform("MVP", shader.UNIFORM_MAT4F)
 quadShader:setUniform("MVP", mvp)
 quadShader:newUniform("MVPInv", shader.UNIFORM_MAT4F)
 quadShader:setUniform("MVPInv", mvp)
-quadShader:newUniform("MVPInvT", shader.UNIFORM_MAT3F)
-quadShader:setUniform("MVPInvT", mvp)
-quadShader:newUniform("MV", shader.UNIFORM_MAT4F)
-quadShader:setUniform("MV", mv)
+--quadShader:newUniform("MVPInvT", shader.UNIFORM_MAT3F)
+--quadShader:setUniform("MVPInvT", mvp)
+--quadShader:newUniform("MV", shader.UNIFORM_MAT4F)
+--quadShader:setUniform("MV", mv)
 quadShader:newUniform("VPInv", shader.UNIFORM_MAT4F)
 quadShader:setUniform("VPInv", vpinv)
-quadShader:newUniform("VP", shader.UNIFORM_MAT4F)
-quadShader:setUniform("VP", vp)
-quadShader:newUniform("V", shader.UNIFORM_MAT4F)
-quadShader:setUniform("V", view)
-quadShader:newUniform("P", shader.UNIFORM_MAT4F)
-quadShader:setUniform("P", projection)
+--quadShader:newUniform("VP", shader.UNIFORM_MAT4F)
+--quadShader:setUniform("VP", vp)
+--quadShader:newUniform("V", shader.UNIFORM_MAT4F)
+--quadShader:setUniform("V", view)
+--quadShader:newUniform("P", shader.UNIFORM_MAT4F)
+--quadShader:setUniform("P", projection)
 
 quadShader:newUniform("camera_world_pos", shader.UNIFORM_3FV)
 quadShader:setUniform("camera_world_pos", cam.pos)
 
+quadShader:newUniform("max_specular_intensity", shader.UNIFORM_1F)
+quadShader:setUniform("max_specular_intensity", 50)
 
 quadShader:newUniform("time", shader.UNIFORM_1F)
 quadShader:newUniform("renderColor", shader.UNIFORM_1I)
 quadShader:newUniform("renderNormal", shader.UNIFORM_1I)
-quadShader:newUniform("renderSpecular", shader.UNIFORM_1I)
+quadShader:newUniform("renderMaterial", shader.UNIFORM_1I)
 quadShader:newUniform("renderDepth", shader.UNIFORM_1I)
 quadShader:setUniform("renderColor", 0)
 quadShader:setUniform("renderNormal", 1)
-quadShader:setUniform("renderSpecular", 2)
+quadShader:setUniform("renderMaterial", 2)
 quadShader:setUniform("renderDepth", 3)
 
 local cam_angle = quat.rotationPYR(quat(), 0, 0, 0)
@@ -291,10 +302,14 @@ while dtl.keystate.sp == 0 do
 	dtl.gl_BindFramebuffer(GL.FRAMEBUFFER, fbo[0])
 	dtl.gl_Viewport(0,0,1280,720)
 	render.clear()
+	
 	dtl.gl_ActiveTexture(GL.TEXTURE0)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, tex_diffuse)
 	dtl.gl_ActiveTexture(GL.TEXTURE1)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, tex_normal)
+	dtl.gl_ActiveTexture(GL.TEXTURE2)
+	dtl.gl_BindTexture(GL.TEXTURE_2D, tex_material)
+	
 	dtl.gl_BindVertexArray(cube[0].vao)
 	dtl.gl_DrawElements(GL.TRIANGLES,
 		cube[0].n_indices,
@@ -307,14 +322,14 @@ while dtl.keystate.sp == 0 do
 	render.setShader(quadShader)
 	quadShader:setUniform("camera_world_pos", cam.pos)
 	quadShader:setUniform("MVP", mvp)
-	quadShader:setUniform("MV", mv)
-	quadShader:setUniform("VP", vp)
+--	quadShader:setUniform("MV", mv)
+--	quadShader:setUniform("VP", vp)
 	quadShader:setUniform("VPInv", vpinv)
 	quadShader:setUniform("MVPInv", mvpinv)
-	quadShader:setUniform("MVPInvT", mvpinvT)
+--	quadShader:setUniform("MVPInvT", mvpinvT)
 	quadShader:setUniform("time", t)
-	quadShader:setUniform("V", view)
-	 quadShader:setUniform("P", projection)
+--	quadShader:setUniform("V", view)
+--	 quadShader:setUniform("P", projection)
 	
 	dtl.gl_ActiveTexture(GL.TEXTURE0)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Color)
@@ -323,7 +338,7 @@ while dtl.keystate.sp == 0 do
 	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Normal)
 	
 	dtl.gl_ActiveTexture(GL.TEXTURE2)
-	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Specular)
+	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Material)
 	
 	dtl.gl_ActiveTexture(GL.TEXTURE3)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Depth)
