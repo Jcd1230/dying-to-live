@@ -270,10 +270,9 @@ void main()
 	
 	float hasObject = step(0.01, dot(normalColor, normalColor));
 	
-
 	//Lighting
 	light l1; //hard coded light
-	l1.pos = vec3(10.0*cos(time), 20.0, 10.0*sin(time));
+	l1.pos = vec3(20.0*cos(time), 20.0, 10.0*sin(time));
 	l1.color = vec3(1.0);
 	l1.range = 10.0;
 	
@@ -289,6 +288,7 @@ void main()
 
 	vec3 final = clamp(diffuse, ambient, vec3(1.0)) + specular;
 	final *= hasObject;
+	//final = pow(final, vec3(2.2));
 	
 	vec3 upleft = specular * hasObject;
 	

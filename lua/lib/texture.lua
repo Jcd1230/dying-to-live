@@ -1,11 +1,11 @@
 local class = require("30log")
 local ffi = require("ffi")
 
-local _M = class("Entity")
+local Entity = class("Entity")
 
-function _M:init()
+function Entity:init()
 	
 end
 
 
-return _M
+return Entity

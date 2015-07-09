@@ -32,7 +32,8 @@ void main()
 	vec3 bitangent = cross(tangent, vertex_normal);
 	vec3 bump = texture(normal_t, vertex_uv).rgb * 2.0 - vec3(1.0);
 	vec3 mappedNormal = normalize(mat3(tangent, bitangent, vertex_normal) * bump);
-	mappedNormal = mix(vertex_normal, mappedNormal, 0.75); //0.75 = normal map "strength" (1.0, full affect, 0.0, use vertex normal)
+	mappedNormal = mix(vertex_normal, mappedNormal,  0.75); //0.75 = normal map "strength" (1.0, full affect, 0.0, use vertex normal)
+	//mappedNormal = vertex_normal;
 	renderColor = albedo;
 	renderNormal = (mappedNormal*0.5) + vec3(0.5);
 	renderMaterial = material;
