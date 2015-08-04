@@ -28,14 +28,16 @@ void checkSDLError(int line)
 
 void initSDL(struct SDL_Info *info)
 {
-	/* Request opengl 3.2 context.
-	 * SDL doesn't have the ability to choose which profile at this time of writing,
-	 * but it should default to the core profile */
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) /* Initialize SDL's Video subsystem */
         sdldie("Unable to initialize SDL"); /* Or die on error */
+
+	/* Request opengl 3.3 context.
+	 * SDL doesn't have the ability to choose which profile at this time of writing,
+	 * but it should default to the core profile */
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE); 
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
     /* Turn on double buffering with a 24bit Z buffer.
      * You may need to change this to 16 or 32 for your system */
@@ -51,7 +53,7 @@ void initSDL(struct SDL_Info *info)
     /* Create our opengl context and attach it to our window */
     info->context = SDL_GL_CreateContext(info->window);
 
-    SDL_GL_SetSwapInterval(1);
+    SDL_GL_SetSwapInterval(0);
  
 }
 

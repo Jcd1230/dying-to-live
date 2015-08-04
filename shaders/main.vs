@@ -1,4 +1,4 @@
-#version 300 es
+#version 330
 
 precision highp float;
 
@@ -13,6 +13,7 @@ struct light {
 	float range;
 };
 
+uniform mat4 MV;
 uniform mat4 MVP;
 uniform mat4 MVPInv;
 uniform float time;
@@ -38,10 +39,10 @@ void main()
 	vertex_normal = v_normal;
 	vertex_tangent = v_tangent;
 	vertex_uv = v_uv.xy;
-
-	screen_pos = vpos.xyz;
-	frag_depth = vpos.z/vpos.w;
 	
+	screen_pos = vpos.xyz;
+	//frag_depth = vpos.z/vpos.w;
+	frag_depth = vpos.z;
 	world_pos = vp_modelspace.xyz;
 	
 	gl_Position = vpos;

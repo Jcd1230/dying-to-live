@@ -1,4 +1,4 @@
-#version 300 es 
+#version 330
 
 uniform highp mat4 MVP;
 uniform highp mat4 MV;
@@ -11,16 +11,24 @@ uniform highp mat3 MVPInvT;
 uniform highp float time;
 uniform highp float max_specular_intensity;
 
+uniform highp float vFOV;
+uniform highp float hFOV;
+
 uniform highp vec3 camera_world_pos;
+uniform highp vec3 camera_forward;
 
 uniform sampler2D renderColor;
 uniform sampler2D renderNormal;
 uniform sampler2D renderMaterial;
 uniform sampler2D renderDepth;
 
+
 precision highp float;
 
+const float PI = 3.1415926;
+
 in highp vec2 screen_pos;
+
 layout(location = 0) out highp vec3 color;
 
 float rand(vec2 co){
@@ -30,7 +38,7 @@ float rand(vec2 co){
 struct light {
 	vec3 pos;
 	vec3 color;
-	float range;
+	float energy;
 };
 
 vec3 mod289(vec3 x) {
@@ -240,8 +248,7 @@ float snoise(vec4 v)
 			   + dot(m1*m1, vec2( dot( p3, x3 ), dot( p4, x4 ) ) ) ) ;
 
 }
-
-
+/*
 void main()
 {
 	vec2 uv = screen_pos;
@@ -272,9 +279,9 @@ void main()
 	
 	//Lighting
 	light l1; //hard coded light
-	l1.pos = vec3(20.0*cos(time), 20.0, 10.0*sin(time));
+	l1.pos = vec3(10.0*cos(time), 5.0, 10.0*sin(time));
 	l1.color = vec3(1.0);
-	l1.range = 10.0;
+	l1.energy = 10.0;
 	
 	vec3 light_to_frag = normalize(l1.pos - world_pos);
 	vec3 frag_to_cam = normalize(world_pos - camera_world_pos);
@@ -294,6 +301,175 @@ void main()
 	
 	// QUAD SPLIT VIEW
 	color =  (diffuse) * (1.0-step(0.5, screen_pos.y)) * (1.0 - step(0.5, screen_pos.x)); //LOWER LEFT
+	color += (normalColor) * (1.0 - step(0.5, screen_pos.y)) * step(0.5, screen_pos.x); //LOWER RIGHT
+	color += (upleft) * step(0.5, screen_pos.y) * (1.0 - step(0.5, screen_pos.x)); //UPPER LEFT
+	color += (final) * step(0.5, screen_pos.y) * step(0.5, screen_pos.x); //UPPER RIGHT
+
+	return;
+}*/
+
+vec3 OrenNayar(
+	float roughness,
+	vec3 albedo,
+	vec3 lightDirection,
+	vec3 viewDirection,
+	vec3 surfaceNormal) 
+{
+
+	float LdotV = dot(lightDirection, viewDirection);
+	float NdotL = dot(lightDirection, surfaceNormal);
+	float NdotV = dot(surfaceNormal, viewDirection);
+
+	float s = LdotV - NdotL * NdotV;
+	float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
+
+	float sigma2 = roughness * roughness;
+	vec3 A = 1.0 + sigma2 * (albedo / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
+	float B = 0.45 * sigma2 / (sigma2 + 0.09);
+
+	return (albedo) * max(0.0, NdotL) * (A + vec3(B * s / t)) / PI;
+}
+
+float gaussianSpecular(
+  vec3 lightDirection,
+  vec3 viewDirection,
+  vec3 surfaceNormal,
+  float shininess) {
+  vec3 H = normalize(lightDirection + viewDirection);
+  float theta = acos(dot(H, surfaceNormal));
+  float w = theta / shininess;
+  return exp(-w*w);
+}
+
+float beckmannDistribution(float x, float roughness) {
+  float NdotH = max(x, 0.0001);
+  float cos2Alpha = NdotH * NdotH;
+  float tan2Alpha = (cos2Alpha - 1.0) / cos2Alpha;
+  float roughness2 = roughness * roughness;
+  float denom = 3.141592653589793 * roughness2 * cos2Alpha * cos2Alpha;
+  return exp(tan2Alpha / roughness2) / denom;
+}
+
+float cookTorranceSpecular(
+  vec3 lightDirection,
+  vec3 viewDirection,
+  vec3 surfaceNormal,
+  float roughness,
+  float fresnel) {
+
+  float VdotN = max(dot(viewDirection, surfaceNormal), 0.0);
+  float LdotN = max(dot(lightDirection, surfaceNormal), 0.0);
+
+  //Half angle vector
+  vec3 H = normalize(lightDirection + viewDirection);
+
+  //Geometric term
+  float NdotH = max(dot(surfaceNormal, H), 0.0);
+  float VdotH = max(dot(viewDirection, H), 0.000001);
+  float LdotH = max(dot(lightDirection, H), 0.000001);
+  float G1 = (2.0 * NdotH * VdotN) / VdotH;
+  float G2 = (2.0 * NdotH * LdotN) / LdotH;
+  float G = min(1.0, min(G1, G2));
+  
+  //Distribution term
+  float D = beckmannDistribution(NdotH, roughness);
+
+  //Fresnel term
+  float F = pow(1.0 - VdotN, fresnel);
+
+  //Multiply terms and done
+  return  G * F * D / max(3.14159265 * VdotN, 0.000001);
+}
+
+void main() //WARD + OREN NAYAR WIP
+{
+	vec2 uv = screen_pos;
+	uv = mod(screen_pos, vec2(0.5,0.5)) * 2.0; //QUAD VIEW
+
+	float depth = texture(renderDepth, uv).r;
+
+	float zFar = 50.0; // TODO: CONVERT TO UNIFORM
+	float zNear = 0.1; // ^
+	float dist = zNear + depth*(zFar-zNear);
+	vec2 ray = (uv*2.0) - vec2(1.0);
+	vec3 cam_forward = normalize(camera_forward);
+	vec3 cam_right = normalize(cross(cam_forward, vec3(0.0,1.0,0.0)));
+	vec3 cam_up = normalize(cross(cam_forward, cam_right));
+	vec3 world_pos = camera_world_pos;
+	world_pos += normalize(cam_forward) * dist;
+
+	float cam_top = dist*tan(vFOV);
+	vec2 cam_topright = vec2(cam_top*16.0/9.0, cam_top);
+	vec2 cam_ray = (uv*2.0 - vec2(1.0)) * cam_topright;
+	world_pos += cam_right*(cam_ray.x);
+	world_pos += cam_up*(-cam_ray.y);
+	
+	
+	//Texture accesses
+	vec3 albedo = texture(renderColor, uv).rgb;
+	vec3 normalColor = texture(renderNormal, uv).rgb;
+	vec3 material = texture(renderMaterial, uv).rgb;
+
+	float specular_intensity = max(0.01, max_specular_intensity * material.r);
+	float specular_weight = material.r;
+
+	vec3 normal = normalize((normalColor - vec3(0.5))*2.0);
+
+	float hasObject = sign(dot(normalColor,normalColor));
+
+	//Lighting
+	int n_lights = 2;
+	light lights[2];
+	lights[0].pos = vec3(10.0*cos(time), 5.0, 10.0*sin(time));
+	lights[0].color = vec3(1.0, 0.1, 0.1);
+	lights[0].energy = 10.0;
+	lights[1].pos = vec3(5.0, 5.0, 5.0);
+	lights[1].color = vec3(1.0, 1.0, 1.0);
+	lights[1].energy = 5.0;
+	
+	float roughness = 0.5;
+	float fresnel = 3.0;
+	vec3 final = vec3(0.0);
+	vec3 viewDirection = normalize(camera_world_pos - world_pos); //direction to camera from frag
+	vec3 diffuse = vec3(0.0);
+	float specular = 0.0;
+	
+	for (int i = 0; i < n_lights; i++) {
+		vec3 lightDirection = normalize(lights[i].pos - world_pos); //direction to light
+		float energy = lights[i].energy;
+
+		float ctSpec = cookTorranceSpecular
+		(
+			lightDirection,
+			viewDirection,
+			normal,
+			roughness,
+			fresnel
+		);
+
+		float remainingEnergy = energy - specular;
+		
+		vec3 ONDiffuse = OrenNayar
+		(
+			roughness,
+			albedo,
+			lightDirection,
+			viewDirection,
+			normal
+		);
+
+		diffuse += ONDiffuse * energy * lights[i].color;
+		specular += ctSpec * energy;
+	}
+	
+	final = diffuse + vec3(specular);
+	final *= hasObject;
+	final = final/(final + vec3(1.0));
+	
+	vec3 upleft = vec3(specular) * hasObject;
+
+	// QUAD SPLIT VIEW
+	color =  (diffuse * hasObject) * (1.0-step(0.5, screen_pos.y)) * (1.0 - step(0.5, screen_pos.x)); //LOWER LEFT
 	color += (normalColor) * (1.0 - step(0.5, screen_pos.y)) * step(0.5, screen_pos.x); //LOWER RIGHT
 	color += (upleft) * step(0.5, screen_pos.y) * (1.0 - step(0.5, screen_pos.x)); //UPPER LEFT
 	color += (final) * step(0.5, screen_pos.y) * step(0.5, screen_pos.x); //UPPER RIGHT

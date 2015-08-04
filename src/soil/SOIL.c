@@ -13,7 +13,9 @@
 	* everybody at gamedev.net
 */
 
-#define SOIL_CHECK_FOR_GL_ERRORS 0
+#define SOIL_CHECK_FOR_GL_ERRORS 1
+
+#include "gl_core_3_3.h"
 
 #ifdef WIN32
 	#define WIN32_LEAN_AND_MEAN
@@ -29,6 +31,7 @@
 	#include <GL/gl.h>
 	#include <GL/glx.h>
 #endif
+
 
 #include "SOIL.h"
 #include "stb_image_aug.h"
@@ -145,6 +148,8 @@ unsigned int
 		result_string_pointer = stbi_failure_reason();
 		return 0;
 	}
+	
+	//printf("Before make texture: %s\n", result_string_pointer);
 	/*	OK, make it a texture!	*/
 	tex_id = SOIL_internal_create_OGL_texture(
 			img, width, height, channels,
@@ -152,6 +157,7 @@ unsigned int
 			GL_TEXTURE_2D, GL_TEXTURE_2D,
 			GL_MAX_TEXTURE_SIZE );
 	/*	and nuke the image data	*/
+	//printf("Before SOIL FREE: %s\n", result_string_pointer);
 	SOIL_free_image_data( img );
 	/*	and return the handle, such as it is	*/
 	return tex_id;
@@ -1177,10 +1183,10 @@ unsigned int
 		switch( channels )
 		{
 		case 1:
-			original_texture_format = GL_LUMINANCE;
+			original_texture_format = GL_RED;
 			break;
 		case 2:
-			original_texture_format = GL_LUMINANCE_ALPHA;
+			original_texture_format = GL_RG;
 			break;
 		case 3:
 			original_texture_format = GL_RGB;
@@ -1343,7 +1349,7 @@ unsigned int
 		} else
 		{
 			/*	unsigned int clamp_mode = SOIL_CLAMP_TO_EDGE;	*/
-			unsigned int clamp_mode = GL_CLAMP;
+			unsigned int clamp_mode = GL_CLAMP_TO_EDGE;
 			glTexParameteri( opengl_texture_type, GL_TEXTURE_WRAP_S, clamp_mode );
 			glTexParameteri( opengl_texture_type, GL_TEXTURE_WRAP_T, clamp_mode );
 			if( opengl_texture_type == SOIL_TEXTURE_CUBE_MAP )
@@ -1810,7 +1816,7 @@ unsigned int SOIL_direct_load_DDS_from_memory(
 		} else
 		{
 			/*	unsigned int clamp_mode = SOIL_CLAMP_TO_EDGE;	*/
-			unsigned int clamp_mode = GL_CLAMP;
+			unsigned int clamp_mode = GL_CLAMP_TO_EDGE;
 			glTexParameteri( opengl_texture_type, GL_TEXTURE_WRAP_S, clamp_mode );
 			glTexParameteri( opengl_texture_type, GL_TEXTURE_WRAP_T, clamp_mode );
 			glTexParameteri( opengl_texture_type, SOIL_TEXTURE_WRAP_R, clamp_mode );
@@ -1876,17 +1882,17 @@ int query_NPOT_capability( void )
 	if( has_NPOT_capability == SOIL_CAPABILITY_UNKNOWN )
 	{
 		/*	we haven't yet checked for the capability, do so	*/
-		if(
-			(NULL == strstr( (char const*)glGetString( GL_EXTENSIONS ),
-				"GL_ARB_texture_non_power_of_two" ) )
-			)
-		{
-			/*	not there, flag the failure	*/
-			has_NPOT_capability = SOIL_CAPABILITY_NONE;
-		} else
-		{
-			/*	it's there!	*/
-			has_NPOT_capability = SOIL_CAPABILITY_PRESENT;
+		int max_extension;
+		glGetIntegerv(GL_NUM_EXTENSIONS, &max_extension);
+		int i;
+		has_NPOT_capability = SOIL_CAPABILITY_NONE;
+
+		for (i = 0; i < max_extension; i++) {
+			const char* ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
+			if (strcmp(ext, "GL_ARB_texture_non_power_of_two") == 0) {
+				has_NPOT_capability = SOIL_CAPABILITY_PRESENT;
+				break;
+			}
 		}
 	}
 	/*	let the user know if we can do non-power-of-two textures or not	*/

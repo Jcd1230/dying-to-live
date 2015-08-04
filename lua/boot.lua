@@ -2,8 +2,7 @@ package.path = package.path..";../lua/?.lua;../lua/lib/?.lua"
 
 local ffi = require"ffi"
 ffi.cdef(io.open("ffi/ffi_defs.h","r"):read("*a"))
-DEBUG = false
---debug = debug and ffi.os == 'Linux'
+DEBUG = true and ffi.os == 'Linux'
 
 if DEBUG then
 else

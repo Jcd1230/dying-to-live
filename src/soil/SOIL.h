@@ -44,6 +44,7 @@
 extern "C" {
 #endif
 
+
 /**
 	The format of images that may be loaded (force_channels).
 	SOIL_LOAD_AUTO leaves the image in whatever format it was found.

@@ -1,4 +1,4 @@
-#version 300 es
+#version 330
 
 uniform sampler2D diffuse_t;
 uniform sampler2D normal_t;
@@ -7,6 +7,8 @@ uniform sampler2D material_t;
 uniform highp float time;
 uniform highp mat4 MVP;
 uniform highp mat4 MVPInv;
+uniform highp float zNear;
+uniform highp float zFar;
 
 precision highp float;
 
@@ -37,7 +39,7 @@ void main()
 	renderColor = albedo;
 	renderNormal = (mappedNormal*0.5) + vec3(0.5);
 	renderMaterial = material;
-	renderDepth = frag_depth;
+	renderDepth = (frag_depth-zNear)/(zFar-zNear);
 	
 	return;
 }

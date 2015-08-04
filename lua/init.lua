@@ -2,15 +2,18 @@ local M = {}
 
 local ffi = require"ffi"
 local dtl, sdl, km, soil = require("dtl"), require("sdl"), require("km"), require("soil")
+local tex = require("texture")
 local shader, render, GL = require("shader"), require("render"), require("gl")
 local vec3, mat3, mat4, quat =  km.vec3, km.mat3, km.mat4, km.quat
 ffi.cdef[[
 int main(int argc, char *argv[]);
 void initOGL();
 ]]
---dtl.main(0,nil)
 
 local md
+
+DEBUG = false
+
 if DEBUG then
 	md = require("mobdebug")
 	md.start("127.0.0.1",8172)
@@ -27,6 +30,21 @@ local function debugmat(m)
 	return x 
 end
 
+local function debugmat2(m)
+	local form = [[
+%.2f	%.2f	%.2f	%.2f
+%.2f	%.2f	%.2f	%.2f
+%.2f	%.2f	%.2f	%.2f
+%.2f	%.2f	%.2f	%.2f
+]]	
+	return string.format(form, 
+		m.mat[0], m.mat[4], m.mat[8], m.mat[12],
+		m.mat[1], m.mat[5], m.mat[9], m.mat[13],
+		m.mat[2], m.mat[6], m.mat[10], m.mat[14],
+		m.mat[3], m.mat[7], m.mat[11], m.mat[15]
+	)
+end
+
 local function glerror(s)
 	local e = dtl.gl_GetError()
 	if e > 0 then
@@ -41,34 +59,34 @@ dtl.initSDL(info)
 if dtl.ogl_LoadFunctions() == dtl.ogl_LOAD_FAILED then
 	error("Could not load OpenGL functions")
 end
+
+local majorv, minorv = ffi.new("int[1]"), ffi.new("int[1]")
+dtl.gl_GetIntegerv(GL.MAJOR_VERSION, majorv)
+dtl.gl_GetIntegerv(GL.MINOR_VERSION, minorv)
+print("GL VERSION: "..majorv[0].."."..minorv[0])
+print("GLSL VERSION: "..ffi.string(dtl.gl_GetString(GL.SHADING_LANGUAGE_VERSION)))
+
 shader.init()
-brkpt()
 print("Loading mesh...")
 local cube = ffi.new("struct mesh[1]")
 local quad = ffi.new("struct mesh[1]")
-dtl.loadmesh("../assets/cube_s2.x", cube)
+dtl.loadmesh("../assets/sphere.x", cube)
 dtl.loadmesh("../assets/quad.obj", quad)
 print("Loading texture...")
-local tex_diffuse = soil.SOIL_load_OGL_texture(
-	"../assets/brick1.png",
-	soil.SOIL_LOAD_AUTO,
-	soil.SOIL_CREATE_NEW_ID,
-	bit.bor(soil.SOIL_FLAG_MIPMAPS, soil.SOIL_FLAG_INVERT_Y)
-)
-local tex_normal = soil.SOIL_load_OGL_texture(
-	"../assets/brick1n.png",
-	soil.SOIL_LOAD_AUTO,
-	soil.SOIL_CREATE_NEW_ID,
-	bit.bor(soil.SOIL_FLAG_MIPMAPS, soil.SOIL_FLAG_INVERT_Y)
-)
-local tex_material = soil.SOIL_load_OGL_texture(
-	"../assets/brick1s.png",
-	soil.SOIL_LOAD_AUTO,
-	soil.SOIL_CREATE_NEW_ID,
-	bit.bor(soil.SOIL_FLAG_MIPMAPS, soil.SOIL_FLAG_INVERT_Y)
-)
+local tex_diffuse = tex.getTextureID("grey.png")
+--local tex_diffuse = tex.getTextureID("brick1.png")
+dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT)
+dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
+local tex_normal = tex.getTextureID("flat_normal.png")
+--local tex_normal = tex.getTextureID("brick1n.png")
+dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT)
+dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
+local tex_material = tex.getTextureID("brick1s.png")
+dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT)
+dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
 
 print("Creating framebuffer")
+
 -- The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
 local fbo = ffi.new("GLuint[1]")
 dtl.gl_GenFramebuffers(1, fbo)
@@ -155,17 +173,25 @@ local cam = {
 	lookat = vec3(),
 	up = vec3()
 }
-cam.pos[0] = { 1, 1, 3 }
-cam.lookat[0] = { 0, 0, 5 }
-cam.up[0] = { 0, 0, 1 }
+cam.pos[0] = { 2, 0, 0 }
+cam.lookat[0] = { 0, 0, 0 }
+cam.up[0] = { 0, 1, 0 }
+
+local zNear = 0.1
+local zFar = 50
+local vFOV = math.rad(35)
+local aspectRatio = 16/9
+local hFOV = math.atan(aspectRatio * math.tan(vFOV/2))
+
 local model_trans = mat4.translation(mat4.iden(mat4()), 0, 0, 0)
-local model_scale = mat4.scaling(mat4.iden(mat4()), 1, 1, 1)
+local model_scale = mat4.scaling(mat4.iden(mat4()),1,1,1)
 local model_rotate = mat4.rotationYPR(mat4.iden(mat4()), 0, 0, 0)
 local model = mat4.iden(mat4())
 mat4.mul(model, model_rotate, model)
 mat4.mul(model, model_scale, model)
 mat4.mul(model, model_trans, model)
-local projection = mat4.perspectiveProjection(mat4(), 70, 16/9, 0.01, 100)
+local projection = mat4()
+projection = mat4.perspectiveProjection(projection, math.deg(vFOV)*2, aspectRatio, zNear, zFar)
 local view = mat4.lookAt(mat4(), cam.pos, cam.lookat, cam.up)
 local mvp = mat4.iden(mat4())
 local mvpinv = mat4()
@@ -179,11 +205,22 @@ mat4.mul(mvp, projection, mv)
 mat4.mul(vp, view, projection)
 mat4.inverse(vpinv, vp)
 
+local cam_angle = quat.rotationPYR(quat(), 0, 0, 0)
+local cam_forward = vec3()
+local cam_right = vec3()
+local cam_motion = vec3.zero(vec3())
+
+
 render.clear()
 render.setShader(mainShader)
 
 mainShader:newUniform("MVPInv", shader.UNIFORM_MAT4F)
 mainShader:newUniform("time", shader.UNIFORM_1F)
+
+mainShader:newUniform("zNear", shader.UNIFORM_1F)
+mainShader:newUniform("zFar", shader.UNIFORM_1F)
+mainShader:newUniform("vFOV", shader.UNIFORM_1F)
+mainShader:newUniform("aspectRatio", shader.UNIFORM_1F)
 
 mainShader:newUniform("diffuse_t", shader.UNIFORM_1I)
 mainShader:setUniform("diffuse_t", 0)
@@ -202,6 +239,9 @@ mainShader:setUniform("MVPInv", mvp)
 
 mainShader:newUniform("MV", shader.UNIFORM_MAT4F)
 mainShader:setUniform("MV", mv)
+
+--mainShader:setUniform("zNear", zNear)
+mainShader:setUniform("zFar", zFar)
 
 
 render.setShader(quadShader)
@@ -224,9 +264,22 @@ quadShader:setUniform("VPInv", vpinv)
 
 quadShader:newUniform("camera_world_pos", shader.UNIFORM_3FV)
 quadShader:setUniform("camera_world_pos", cam.pos)
+quadShader:newUniform("camera_forward", shader.UNIFORM_3FV)
+quadShader:setUniform("camera_forward", cam_forward)
+--quadShader:newUniform("camera_world_pos", shader.UNIFORM_3FV)
+--quadShader:setUniform("camera_world_pos", cam.pos)
 
 quadShader:newUniform("max_specular_intensity", shader.UNIFORM_1F)
 quadShader:setUniform("max_specular_intensity", 50)
+
+quadShader:newUniform("vFOV", shader.UNIFORM_1F)
+quadShader:setUniform("vFOV", vFOV)
+quadShader:newUniform("hFOV", shader.UNIFORM_1F)
+quadShader:setUniform("hFOV", hFOV)
+
+quadShader:newUniform("max_specular_intensity", shader.UNIFORM_1F)
+quadShader:setUniform("max_specular_intensity", 50)
+
 
 quadShader:newUniform("time", shader.UNIFORM_1F)
 quadShader:newUniform("renderColor", shader.UNIFORM_1I)
@@ -238,21 +291,25 @@ quadShader:setUniform("renderNormal", 1)
 quadShader:setUniform("renderMaterial", 2)
 quadShader:setUniform("renderDepth", 3)
 
-local cam_angle = quat.rotationPYR(quat(), 0, 0, 0)
-local cam_forward = vec3()
-local cam_right = vec3()
-local cam_motion = vec3.zero(vec3())
 dtl.keystate.w = 0
 dtl.keystate.a = 0
 dtl.keystate.s = 0
 dtl.keystate.d = 0
 dtl.keystate.sp = 0
-dtl.cam.yaw = 0
+dtl.cam.yaw = 1.6
 dtl.cam.pitch = 0
 dtl.gl_Enable(GL.DEPTH_TEST)
 dtl.gl_DepthFunc(GL.LESS)
 local t = 0
+
+brkpt()
+
 while dtl.keystate.sp == 0 do
+	--[[
+	print("YAW: "..dtl.cam.yaw)
+	print("PITCH:"..dtl.cam.pitch)
+	print(("POS: %.2f | %.2f | %.2f"):format(cam.pos[0].x, cam.pos[0].y, cam.pos[0].z))
+	print(hFOV, vFOV, math.deg(hFOV), math.deg(vFOV))--]]
 	local event = ffi.new("SDL_Event[1]")
 	dtl.handle_events(event)
 	t = t + 1/60;
@@ -293,9 +350,8 @@ while dtl.keystate.sp == 0 do
 	mat4.inverse(vpinv, vp)
 	mat4.mul(mv, model, view)
 	
-	brkpt()
-	
 	render.setShader(mainShader)
+	mainShader:setUniform("MV", mv)
 	mainShader:setUniform("MVP", mvp)
 	mainShader:setUniform("MVPInv", mvpinv)
 
@@ -321,6 +377,7 @@ while dtl.keystate.sp == 0 do
 	render.clear()
 	render.setShader(quadShader)
 	quadShader:setUniform("camera_world_pos", cam.pos)
+	quadShader:setUniform("camera_forward", cam_forward)
 	quadShader:setUniform("MVP", mvp)
 --	quadShader:setUniform("MV", mv)
 --	quadShader:setUniform("VP", vp)
@@ -329,7 +386,7 @@ while dtl.keystate.sp == 0 do
 --	quadShader:setUniform("MVPInvT", mvpinvT)
 	quadShader:setUniform("time", t)
 --	quadShader:setUniform("V", view)
---	 quadShader:setUniform("P", projection)
+--	quadShader:setUniform("P", projection)
 	
 	dtl.gl_ActiveTexture(GL.TEXTURE0)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Color)

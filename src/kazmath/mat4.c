@@ -647,7 +647,7 @@ kmMat4* kmMat4LookAt(kmMat4* pOut, const kmVec3* pEye,
     kmVec3Normalize(&s, &s);
 
     kmVec3Cross(&u, &s, &f);
-    kmVec3Normalize(&s, &s);
+    kmVec3Normalize(&u, &u);
 
     kmMat4Identity(pOut);
 

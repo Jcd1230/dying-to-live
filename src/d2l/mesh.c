@@ -76,7 +76,7 @@ int loadmeshes(const char* filename, struct mesh **meshes_in, int n_meshes_out)
 				meshes[i].v_uv[j*3+2] = 0.0;
 			}
 			if (scene->mMeshes[i]->mTangents != NULL) {
-				printf("Adding tangent %d\n", j);
+				//printf("Adding tangent %d\n", j);
 				tangent = scene->mMeshes[i]->mTangents[j];
 				meshes[i].v_tangent[j*3+0] = tangent.x;
 				meshes[i].v_tangent[j*3+1] = tangent.y;
