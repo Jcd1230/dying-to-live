@@ -4,7 +4,7 @@
 .tup
 *.swp
 
-IGNORE/**
+IGNORE/
 
 /build-*
 *.o
