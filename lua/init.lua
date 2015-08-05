@@ -81,7 +81,7 @@ local tex_normal = tex.getTextureID("flat_normal.png")
 --local tex_normal = tex.getTextureID("brick1n.png")
 dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT)
 dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
-local tex_material = tex.getTextureID("brick1s.png")
+local tex_material = tex.getTextureID("grey.png")
 dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT)
 dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
 

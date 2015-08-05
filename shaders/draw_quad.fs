@@ -428,7 +428,7 @@ void main() //WARD + OREN NAYAR WIP
 	lights[1].energy = 5.0;
 	
 	float roughness = 0.5;
-	float fresnel = 3.0;
+	float fresnel = 1.6;
 	vec3 final = vec3(0.0);
 	vec3 viewDirection = normalize(camera_world_pos - world_pos); //direction to camera from frag
 	vec3 diffuse = vec3(0.0);

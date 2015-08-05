@@ -3,7 +3,8 @@
 ##### Do not edit.
 .tup
 *.swp
-/.gitignore
+
+IGNORE/
 
 /build-*
 *.o
