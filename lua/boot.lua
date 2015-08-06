@@ -8,11 +8,11 @@ if DEBUG then
 else
 	setmetatable(_G, {
 		__newindex = function (_, n)
-			error("Attempt to write to global variable (use rawset) '"..n.."'", 2)
+			error("Attempt to write global variable '"..n.."' (use rawset)", 2)
 		end,
 		__index = function (_, n)
-			error("Attempt to read global variable (use rawget) '"..n.."'", 2)
-		end,
+			error("Attempt to read global variable '"..n.."' (use rawget)", 2)
+		end
 	})
 end
 require("init")

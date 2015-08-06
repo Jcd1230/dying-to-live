@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include "sdl_util.h"
-
+#include <time.h>
 /* A simple function that prints a message, the error code returned by SDL,
  * and quits the application */
 void sdldie(const char *msg)
@@ -28,7 +28,6 @@ void checkSDLError(int line)
 
 void initSDL(struct SDL_Info *info)
 {
-
     if (SDL_Init(SDL_INIT_VIDEO) < 0) /* Initialize SDL's Video subsystem */
         sdldie("Unable to initialize SDL"); /* Or die on error */
 

@@ -4,6 +4,7 @@ local ffi = require"ffi"
 local dtl, sdl, km, soil = require("dtl"), require("sdl"), require("km"), require("soil")
 local tex = require("texture")
 local shader, render, GL = require("shader"), require("render"), require("gl")
+local time = require("time")
 local vec3, mat3, mat4, quat =  km.vec3, km.mat3, km.mat4, km.quat
 ffi.cdef[[
 int main(int argc, char *argv[]);
@@ -59,6 +60,12 @@ dtl.initSDL(info)
 if dtl.ogl_LoadFunctions() == dtl.ogl_LOAD_FAILED then
 	error("Could not load OpenGL functions")
 end
+if soil.ogl_LoadFunctions() == dtl.ogl_LOAD_FAILED then
+	error("Could not load SOIL's OpenGL functions")
+end
+
+print(dtl.gl_GetIntegerv)
+
 
 local majorv, minorv = ffi.new("int[1]"), ffi.new("int[1]")
 dtl.gl_GetIntegerv(GL.MAJOR_VERSION, majorv)
@@ -304,7 +311,15 @@ local t = 0
 
 brkpt()
 
+local frames_counter = 0
+local frames_time = 0
+local max_frame_time = 0
+local min_frame_time = 99999
+local last_fps_display = time.now()
+
 while dtl.keystate.sp == 0 do
+	
+	local start = time.now()
 	--[[
 	print("YAW: "..dtl.cam.yaw)
 	print("PITCH:"..dtl.cam.pitch)
@@ -407,8 +422,30 @@ while dtl.keystate.sp == 0 do
 		GL.UNSIGNED_INT,
 		nil
 	)
-  
+	
 	sdl.SDL_GL_SwapWindow(info[0].window)
+	
+	local frame_end = time.now()
+	local frametime = time.diff(frame_end, start)
+	frames_counter = frames_counter + 1
+	frames_time = frames_time + frametime
+	if frametime > max_frame_time then max_frame_time = frametime end
+	if frametime < min_frame_time then min_frame_time = frametime end
+	if time.diff(frame_end, last_fps_display) > 1000.0 then
+		print(string.format("AVG MS: %3.3f MIN: %3.3f MAX: %4.3f", 
+				frames_time/frames_counter,
+				min_frame_time, max_frame_time)
+		)
+		frames_counter = 0
+		min_frame_time = 99999
+		max_frame_time = 0
+		frames_time = 0
+		last_fps_display = time.now()
+	end
+	
+	
+	--Clamp to ~60fps
+	while (time.diff(time.now(), start) < 16) do end
 end
 
 dtl.gl_DisableVertexAttribArray(0)

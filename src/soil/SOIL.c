@@ -15,28 +15,12 @@
 
 #define SOIL_CHECK_FOR_GL_ERRORS 1
 
-#include "gl_core_3_3.h"
-
-#ifdef WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>
-	#include <wingdi.h>
-	#include <GL/gl.h>
-#elif defined(__APPLE__) || defined(__APPLE_CC__)
-	/*	I can't test this Apple stuff!	*/
-	#include <OpenGL/gl.h>
-	#include <Carbon/Carbon.h>
-	#define APIENTRY
-#else
-	#include <GL/gl.h>
-	#include <GL/glx.h>
-#endif
-
-
 #include "SOIL.h"
 #include "stb_image_aug.h"
 #include "image_helper.h"
 #include "image_DXT.h"
+
+#include "gl_core_3_3.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -149,7 +133,6 @@ unsigned int
 		return 0;
 	}
 	
-	//printf("Before make texture: %s\n", result_string_pointer);
 	/*	OK, make it a texture!	*/
 	tex_id = SOIL_internal_create_OGL_texture(
 			img, width, height, channels,
@@ -157,7 +140,6 @@ unsigned int
 			GL_TEXTURE_2D, GL_TEXTURE_2D,
 			GL_MAX_TEXTURE_SIZE );
 	/*	and nuke the image data	*/
-	//printf("Before SOIL FREE: %s\n", result_string_pointer);
 	SOIL_free_image_data( img );
 	/*	and return the handle, such as it is	*/
 	return tex_id;
@@ -1886,7 +1868,6 @@ int query_NPOT_capability( void )
 		glGetIntegerv(GL_NUM_EXTENSIONS, &max_extension);
 		int i;
 		has_NPOT_capability = SOIL_CAPABILITY_NONE;
-
 		for (i = 0; i < max_extension; i++) {
 			const char* ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
 			if (strcmp(ext, "GL_ARB_texture_non_power_of_two") == 0) {
