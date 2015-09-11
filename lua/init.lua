@@ -5,11 +5,27 @@ local dtl, sdl, km, soil = require("dtl"), require("sdl"), require("km"), requir
 local tex = require("texture")
 local shader, render, GL = require("shader"), require("render"), require("gl")
 local time = require("time")
+local entity = require("entity")
 local vec3, mat3, mat4, quat =  km.vec3, km.mat3, km.mat4, km.quat
 ffi.cdef[[
 int main(int argc, char *argv[]);
 void initOGL();
 ]]
+ffi.cdef[[
+void Sleep(int ms);
+int poll(struct pollfd *fds, unsigned long nfds, int timeout);
+]]
+
+local sleep
+if ffi.os == "Windows" then
+  function sleep(s)
+    ffi.C.Sleep(s*1000)
+  end
+else
+  function sleep(s)
+    ffi.C.poll(nil, 0, s*1000)
+  end
+end
 
 local md
 
@@ -77,7 +93,7 @@ shader.init()
 print("Loading mesh...")
 local cube = ffi.new("struct mesh[1]")
 local quad = ffi.new("struct mesh[1]")
-dtl.loadmesh("../assets/sphere.x", cube)
+dtl.loadmesh("../assets/smoothcube.x", cube)
 dtl.loadmesh("../assets/quad.obj", quad)
 print("Loading texture...")
 local tex_diffuse = tex.getTextureID("grey.png")
@@ -307,6 +323,8 @@ dtl.cam.yaw = 1.6
 dtl.cam.pitch = 0
 dtl.gl_Enable(GL.DEPTH_TEST)
 dtl.gl_DepthFunc(GL.LESS)
+dtl.gl_Enable(GL.CULL_FACE)
+dtl.gl_CullFace(GL.BACK)
 local t = 0
 
 brkpt()
@@ -382,12 +400,18 @@ while dtl.keystate.sp == 0 do
 	dtl.gl_BindTexture(GL.TEXTURE_2D, tex_material)
 	
 	dtl.gl_BindVertexArray(cube[0].vao)
-	dtl.gl_DrawElements(GL.TRIANGLES,
-		cube[0].n_indices,
-		GL.UNSIGNED_INT,
-		nil
-	)
 	
+	for i, ent in ipairs(entity.getAll()) do
+		mainShader:setUniform("MV", ent.mv)
+		mainShader:setUniform("MVP", mvp)
+		mainShader:setUniform("MVPInv", mvpinv)
+		dtl.gl_DrawElements(GL.TRIANGLES,
+			cube[0].n_indices,
+			GL.UNSIGNED_INT,
+			nil
+		)
+	end
+
 	dtl.gl_BindFramebuffer(GL.FRAMEBUFFER, 0)
 	render.clear()
 	render.setShader(quadShader)
@@ -432,9 +456,10 @@ while dtl.keystate.sp == 0 do
 	if frametime > max_frame_time then max_frame_time = frametime end
 	if frametime < min_frame_time then min_frame_time = frametime end
 	if time.diff(frame_end, last_fps_display) > 1000.0 then
-		print(string.format("AVG MS: %3.3f MIN: %3.3f MAX: %4.3f", 
-				frames_time/frames_counter,
-				min_frame_time, max_frame_time)
+		print(
+			string.format("AVG MS: %3.3f MIN: %3.3f MAX: %4.3f", 
+			frames_time/frames_counter,
+			min_frame_time, max_frame_time)
 		)
 		frames_counter = 0
 		min_frame_time = 99999
@@ -445,7 +470,7 @@ while dtl.keystate.sp == 0 do
 	
 	
 	--Clamp to ~60fps
-	while (time.diff(time.now(), start) < 16) do end
+	sleep(math.max(16,(16-time.diff(time.now(), start)))/2000)
 end
 
 dtl.gl_DisableVertexAttribArray(0)

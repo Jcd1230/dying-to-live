@@ -54,6 +54,7 @@ _M.mat4 = mat4
 
 local quat = {
 	rotationPYR = km.kmQuaternionRotationPitchYawRoll,
+	inverse = km.kmQuaternionInverse,
 }
 setmetatable(quat, {
 	__call = function(self, size)
