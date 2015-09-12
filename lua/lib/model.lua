@@ -1,6 +1,6 @@
 local class = require("30log")
 local ffi = require("ffi")
-local d2l = require("dtl")
+local dtl = require("dtl")
 
 local _M = {}
 
@@ -17,7 +17,7 @@ function _M.getModel(filename)
 	if not f then error("Could not load model '"..assetPath.."', failed to open file.") end
 	f:close()
 	local mesh = ffi.new("struct mesh[1]")
-	dtl.loadmesh("../assets/sphere.x", mesh)
+	dtl.loadmesh(assetPath, mesh)
 	modelCache[assetPath] = mesh
 	return mesh
 end

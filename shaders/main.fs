@@ -5,8 +5,6 @@ uniform sampler2D normal_t;
 uniform sampler2D material_t;
 
 uniform highp float time;
-uniform highp mat4 MVP;
-uniform highp mat4 MVPInv;
 uniform highp float zNear;
 uniform highp float zFar;
 

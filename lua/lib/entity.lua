@@ -18,13 +18,15 @@ function _M:init()
 	self._matrix_trans = km.mat4()
 	self._matrix_scale = km.mat4()
 	self._matrix_rotate = km.mat4()
+	
+	table.insert(entities, self)
 end
 
 function _M:calculateMatrix()
 	km.mat4.iden(self.matrix)
 	km.mat4.translation(self._matrix_trans, self.pos.x, self.pos.y, self.pos.z)
 	km.mat4.scaling(self._matrix_scale, 1, 1, 1)
-	km.mat4.rotationYPR(self._matrix_rotate, self.rot.p, self.rot.y, self.rot.z)
+	km.mat4.rotationYPR(self._matrix_rotate, self.rot.p, self.rot.y, self.rot.r)
 	km.mat4.mul(self.matrix, self._matrix_rotate, self.matrix)
 	km.mat4.mul(self.matrix, self._matrix_scale, self.matrix)
 	km.mat4.mul(self.matrix, self._matrix_trans, self.matrix)

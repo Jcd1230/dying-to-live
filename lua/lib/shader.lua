@@ -1,6 +1,6 @@
 local ffi = require("ffi")
 local dtl = require("dtl")
-
+local render = require("render")
 local Shader = {}
 
 local _M = {
@@ -10,9 +10,13 @@ local _M = {
 _M.VERTEX_EXT = '.vs'
 _M.FRAGMENT_EXT = '.fs'
 
+local init = false
+
 _M.init = function()
+	if init then return end
+	init = true
 	_M.UNIFORM_1F = dtl.gl_Uniform1f
-	--_M.UNIFORM_2F = dtl.gl_Uniform2f
+	--_M.UNIFORM_2F = dtl.gl_Uniform2f TODO: Implement all uniform types
 	--_M.UNIFORM_3F = dtl.gl_Uniform3f
 	--_M.UNIFORM_4F = dtl.gl_Uniform4f
 
@@ -41,31 +45,27 @@ Shader.newUniform = function(self, name, _type, count, transpose)
 	self.uniforms[name] = {
 		dtl.gl_GetUniformLocation(self.programID, name), --location
 		_type, --uniform function
-		( -- What function signature does this use? (1 = matrix, 2 = single by value, nil = count + reference)
+		( -- What function signature does this use? 
+			--(matrix (array + inverse bit), single by value, count + reference (float array))
 			_type == _M.UNIFORM_MAT2F or
 			_type == _M.UNIFORM_MAT3F or
 			_type == _M.UNIFORM_MAT4F
-		) and 1 or
+		) and render.sig_matrix or
 		(
 			_type == _M.UNIFORM_1F or
 			_type == _M.UNIFORM_1I or
 			_type == _M.UNIFORM_1UI
-		) and 2,
+		) and render.sig_single
+		or render.sig_array,
 		count or 1,
 		transpose or 0
 	}
 end
 
 Shader.setUniform = function(self, name, value)
-	local uni = self.uniforms[name]
-	if not uni then error("Tried to set uniform '"..name.."' that hasnt been initialized.", 2) end
-	if uni[3] == 1 then -- uni[3] == 1 -> Matrix Uniform
-		uni[2](uni[1], uni[4], uni[5], ffi.cast("const float *", value))
-	elseif uni[3] == 2 then
-		uni[2](uni[1], value)
-	else
-		uni[2](uni[1], uni[4], ffi.cast("const float *", value))
-	end
+
+	render.setUniform(self, name, value) --Pass to renderer since uniforms are global information
+	--The renderer performs additional error checking
 end
 
 Shader.new = function(vertfile, fragfile)

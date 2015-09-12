@@ -335,6 +335,16 @@ local max_frame_time = 0
 local min_frame_time = 99999
 local last_fps_display = time.now()
 
+do
+	local s = 5
+	for i=-s,s do
+		for j=-s,s do
+			local e = entity()
+			e:setPos(i*2.1,math.random()*2-1,j*2.1)
+		end
+	end
+end
+
 while dtl.keystate.sp == 0 do
 	
 	local start = time.now()
@@ -402,9 +412,11 @@ while dtl.keystate.sp == 0 do
 	dtl.gl_BindVertexArray(cube[0].vao)
 	
 	for i, ent in ipairs(entity.getAll()) do
-		mainShader:setUniform("MV", ent.mv)
+		
+		mat4.mul(mvp, view, ent:getMatrix())
+		mat4.mul(mvp, projection, mvp)
 		mainShader:setUniform("MVP", mvp)
-		mainShader:setUniform("MVPInv", mvpinv)
+			
 		dtl.gl_DrawElements(GL.TRIANGLES,
 			cube[0].n_indices,
 			GL.UNSIGNED_INT,
@@ -469,7 +481,7 @@ while dtl.keystate.sp == 0 do
 	end
 	
 	
-	--Clamp to ~60fps
+	--Clamp to ~60fps TODO: waste less time here? or remove (and use VSYNC)
 	sleep(math.max(16,(16-time.diff(time.now(), start)))/2000)
 end
 

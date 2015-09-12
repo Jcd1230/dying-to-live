@@ -13,9 +13,7 @@ struct light {
 	float range;
 };
 
-uniform mat4 MV;
 uniform mat4 MVP;
-uniform mat4 MVPInv;
 uniform float time;
 
 out vec3 vertex_normal;
