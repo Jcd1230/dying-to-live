@@ -424,8 +424,8 @@ void main() //WARD + OREN NAYAR WIP
 	lights[0].color = vec3(1.0, 0.1, 0.1);
 	lights[0].energy = 10.0;
 	lights[1].pos = vec3(5.0, 5.0, 5.0);
-	lights[1].color = vec3(1.0, 1.0, 1.0);
-	lights[1].energy = 5.0;
+	lights[1].color = vec3(0.0, 1.0, 1.0);
+	lights[1].energy = 10.0; //15.0*(sin(time)+1.0);
 	
 	float roughness = 0.5;
 	float fresnel = 1.6;
@@ -436,7 +436,8 @@ void main() //WARD + OREN NAYAR WIP
 	
 	for (int i = 0; i < n_lights; i++) {
 		vec3 lightDirection = normalize(lights[i].pos - world_pos); //direction to light
-		float energy = lights[i].energy;
+		float dist_to_light = length(lights[i].pos - world_pos);
+		float energy = lights[i].energy/(dist_to_light);
 
 		float ctSpec = cookTorranceSpecular
 		(
@@ -447,7 +448,7 @@ void main() //WARD + OREN NAYAR WIP
 			fresnel
 		);
 
-		float remainingEnergy = energy - specular;
+		float remainingEnergy = max(0.0, energy - specular);
 		
 		vec3 ONDiffuse = OrenNayar
 		(
@@ -458,7 +459,7 @@ void main() //WARD + OREN NAYAR WIP
 			normal
 		);
 
-		diffuse += ONDiffuse * energy * lights[i].color;
+		diffuse += ONDiffuse * remainingEnergy * lights[i].color;
 		specular += ctSpec * energy;
 	}
 	

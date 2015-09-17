@@ -5,11 +5,11 @@
 
 GLuint load_shaders(const char* vertFile, const char* fragFile)
 {
-	printf("Created shaders\n");
+	//printf("Created shaders\n");
 	GLuint vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 	GLuint fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 	
-	printf("Created shaders\n");
+	//printf("Created shaders\n");
 	char* vertShaderSource;
 	char* fragShaderSource;
 	
@@ -50,14 +50,19 @@ GLuint load_shaders(const char* vertFile, const char* fragFile)
 
 	//Check shaders
 	GLint result = GL_FALSE;
-	int infoLogLen;
+	int infoLogLen = 0;
 
 	glGetShaderiv(vertexShaderID, GL_COMPILE_STATUS, &result);
 	glGetShaderiv(vertexShaderID, GL_INFO_LOG_LENGTH, &infoLogLen);
 	char *vertShaderLog = calloc(1, infoLogLen);
 	glGetShaderInfoLog(vertexShaderID, infoLogLen, NULL, vertShaderLog);
-	if (strlen(vertShaderLog)) {
-		printf("ERROR: (vertex shader) %s: %s\n", vertFile, vertShaderLog);
+
+	if (infoLogLen > 1) {
+		glGetShaderInfoLog(vertexShaderID, infoLogLen, NULL, vertShaderLog);
+		printf("Vertex Shader Log: (%s):\n %s\n", vertFile, vertShaderLog);
+	}
+	if (result == GL_FALSE) {
+		printf("ERROR: Vertex Shader failed to compile.\nSee log above.\n");
 		exit(1);
 	}
 
@@ -65,12 +70,16 @@ GLuint load_shaders(const char* vertFile, const char* fragFile)
 	glGetShaderiv(fragmentShaderID, GL_INFO_LOG_LENGTH, &infoLogLen);
 	char *fragShaderLog = calloc(1, infoLogLen);
 	glGetShaderInfoLog(fragmentShaderID, infoLogLen, NULL, fragShaderLog);
-	if (strlen(fragShaderLog)) {
-		printf("ERROR: (fragment shader) %s: %s\n", fragFile, fragShaderLog);
+	if (infoLogLen > 1) {
+		glGetShaderInfoLog(fragmentShaderID, infoLogLen, NULL, fragShaderLog);
+		printf("Fragment Shader Log: (%s):\n %s\n", fragFile, fragShaderLog);
+	}
+	if (result == GL_FALSE) {
+		printf("ERROR: Fragment Shader failed to compile.\nSee log above.\n");
 		exit(1);
 	}
 	// Link the program
-	printf("Linking\n");
+	//printf("Linking\n");
 	GLuint programID = glCreateProgram();
 	glAttachShader(programID, vertexShaderID);
 	glAttachShader(programID, fragmentShaderID);
@@ -80,8 +89,15 @@ GLuint load_shaders(const char* vertFile, const char* fragFile)
 	glGetProgramiv(programID, GL_LINK_STATUS, &result);
 	glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &infoLogLen);
 	char *programErrorMessage = calloc(1, infoLogLen);
-	glGetProgramInfoLog(programID, infoLogLen, NULL, programErrorMessage);
-
+	if (infoLogLen > 1) {
+		glGetProgramInfoLog(programID, infoLogLen, NULL, programErrorMessage);
+		printf("Shader Linker Log: (Vertex: %s, Fragment: %s):\n %s\n", vertFile, fragFile, programErrorMessage);
+	}
+	if (result == GL_FALSE) {
+		printf("ERROR: Shader failed to link.\nSee log above.\n");
+		exit(1);
+	}
+	
 	glDeleteShader(vertexShaderID);
 	glDeleteShader(fragmentShaderID);
 

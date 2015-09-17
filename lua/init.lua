@@ -344,7 +344,7 @@ do
 		end
 	end
 end
-
+local event = ffi.new("SDL_Event[1]")
 while dtl.keystate.sp == 0 do
 	
 	local start = time.now()
@@ -353,7 +353,6 @@ while dtl.keystate.sp == 0 do
 	print("PITCH:"..dtl.cam.pitch)
 	print(("POS: %.2f | %.2f | %.2f"):format(cam.pos[0].x, cam.pos[0].y, cam.pos[0].z))
 	print(hFOV, vFOV, math.deg(hFOV), math.deg(vFOV))--]]
-	local event = ffi.new("SDL_Event[1]")
 	dtl.handle_events(event)
 	t = t + 1/60;
 	quat.rotationPYR(cam_angle, dtl.cam.pitch, dtl.cam.yaw, 0)
@@ -389,7 +388,7 @@ while dtl.keystate.sp == 0 do
 	mat3.assignMat4(mvpinvT, mvp)
 	mat3.inverse(mvpinvT, mvpinvT)
 	mat3.transpose(mvpinvT, mvpinvT)
-	mat4.mul(vp, view, projection)
+	mat4.mul(vp, projection, view )
 	mat4.inverse(vpinv, vp)
 	mat4.mul(mv, model, view)
 	
@@ -413,8 +412,8 @@ while dtl.keystate.sp == 0 do
 	
 	for i, ent in ipairs(entity.getAll()) do
 		
-		mat4.mul(mvp, view, ent:getMatrix())
-		mat4.mul(mvp, projection, mvp)
+		mat4.mul(mvp, vp, ent:getMatrix())
+		--mat4.mul(mvp, projection, mvp)
 		mainShader:setUniform("MVP", mvp)
 			
 		dtl.gl_DrawElements(GL.TRIANGLES,
@@ -469,7 +468,8 @@ while dtl.keystate.sp == 0 do
 	if frametime < min_frame_time then min_frame_time = frametime end
 	if time.diff(frame_end, last_fps_display) > 1000.0 then
 		print(
-			string.format("AVG MS: %3.3f MIN: %3.3f MAX: %4.3f", 
+			string.format("FPS: %3.1f  AVG MS: %3.3f MIN: %3.3f MAX: %4.3f", 
+			frames_counter*1000/frames_time,
 			frames_time/frames_counter,
 			min_frame_time, max_frame_time)
 		)
