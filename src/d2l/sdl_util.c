@@ -52,7 +52,7 @@ void initSDL(struct SDL_Info *info)
     /* Create our opengl context and attach it to our window */
     info->context = SDL_GL_CreateContext(info->window);
 
-    SDL_GL_SetSwapInterval(0);
+    SDL_GL_SetSwapInterval(1);
  
 }
 

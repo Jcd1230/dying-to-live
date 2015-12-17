@@ -14,6 +14,7 @@ struct light {
 };
 
 uniform mat4 MVP;
+uniform mat4 M;
 uniform float time;
 
 out vec3 vertex_normal;
@@ -34,7 +35,7 @@ void main()
 	highp vec4 v = vec4(vp_modelspace, 1.0);
 	vec4 vpos = MVP*v;	
 	
-	vertex_normal = v_normal;
+	vertex_normal = (M*vec4(v_normal, 0.0)).xyz;
 	vertex_tangent = v_tangent;
 	vertex_uv = v_uv.xy;
 	

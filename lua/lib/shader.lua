@@ -41,11 +41,10 @@ _M.init = function()
 end
 
 Shader.newUniform = function(self, name, _type, count, transpose)
+	
 	if not _type then error("Invalid uniform type.", 2) end
-	self.uniforms[name] = {
-		dtl.gl_GetUniformLocation(self.programID, name), --location
-		_type, --uniform function
-		( -- What function signature does this use? 
+	
+	local uniform_type = ( -- What function signature does this use? 
 			--(matrix (array + inverse bit), single by value, count + reference (float array))
 			_type == _M.UNIFORM_MAT2F or
 			_type == _M.UNIFORM_MAT3F or
@@ -56,14 +55,30 @@ Shader.newUniform = function(self, name, _type, count, transpose)
 			_type == _M.UNIFORM_1I or
 			_type == _M.UNIFORM_1UI
 		) and render.sig_single
-		or render.sig_array,
+		or render.sig_array
+	
+	-- Allow first value in newUniform for single values
+	local value
+	if count ~= nil and uniform_type == render.sig_single then
+		value = count
+		count = 1
+	end
+	
+	self.uniforms[name] = {
+		dtl.gl_GetUniformLocation(self.programID, name), --location
+		_type, --uniform function
+		uniform_type,
 		count or 1,
 		transpose or 0
 	}
+	
+	-- Set first value in newUniform for single values
+	if value then
+		self:setUniform(name, value)
+	end
 end
 
 Shader.setUniform = function(self, name, value)
-
 	render.setUniform(self, name, value) --Pass to renderer since uniforms are global information
 	--The renderer performs additional error checking
 end

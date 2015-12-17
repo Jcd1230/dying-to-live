@@ -7,29 +7,20 @@ local shader, render, GL = require("shader"), require("render"), require("gl")
 local time = require("time")
 local entity = require("entity")
 local vec3, mat3, mat4, quat =  km.vec3, km.mat3, km.mat4, km.quat
-ffi.cdef[[
-int main(int argc, char *argv[]);
-void initOGL();
-]]
-ffi.cdef[[
-void Sleep(int ms);
-int poll(struct pollfd *fds, unsigned long nfds, int timeout);
-]]
 
-local sleep
-if ffi.os == "Windows" then
-  function sleep(s)
-    ffi.C.Sleep(s*1000)
-  end
-else
-  function sleep(s)
-    ffi.C.poll(nil, 0, s*1000)
-  end
-end
+local sleep = require("util.sleep")
 
 local md
 
-DEBUG = false
+local function ultrastack()
+	--local x =debug.getinfo(2)
+	--for k,v in pairs(x) do print(k,v) end
+	--print(x.short_src)
+	print(debug.traceback(2))
+end
+--debug.sethook(ultrastack, "l")
+
+DEBUG = true
 
 if DEBUG then
 	md = require("mobdebug")
@@ -37,7 +28,6 @@ if DEBUG then
 end
 
 local brkpt = DEBUG and md.pause or function()end
-
 
 local function debugmat(m) 
 	local x = {}
@@ -93,7 +83,7 @@ shader.init()
 print("Loading mesh...")
 local cube = ffi.new("struct mesh[1]")
 local quad = ffi.new("struct mesh[1]")
-dtl.loadmesh("../assets/smoothcube.x", cube)
+dtl.loadmesh("../assets/plane.x", cube)
 dtl.loadmesh("../assets/quad.obj", quad)
 print("Loading texture...")
 local tex_diffuse = tex.getTextureID("grey.png")
@@ -110,83 +100,8 @@ dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
 
 print("Creating framebuffer")
 
--- The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
-local fbo = ffi.new("GLuint[1]")
-dtl.gl_GenFramebuffers(1, fbo)
-dtl.gl_BindFramebuffer(GL.FRAMEBUFFER, fbo[0])
+local fbo = render.init()
 
-
--- The texture we're going to render to
-local frameRes = { w = 1280, h = 720 }
-local texRenders = ffi.new("GLuint[4]")
-dtl.gl_GenTextures(4, texRenders)
-local texRender = {
-	Color = texRenders[0],
-	Normal = texRenders[1],
-	Material = texRenders[2],
-	Depth = texRenders[3]
-}
-
------------------- COLOR
-dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Color)
-dtl.gl_TexImage2D(GL.TEXTURE_2D, 0, GL.RGB, frameRes.w, frameRes.h, 0, GL.RGB, GL.UNSIGNED_BYTE, nil)
--- Nearest Filtering
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST)
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST)
-
------------------- NORMAL
-dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Normal)
-dtl.gl_TexImage2D(GL.TEXTURE_2D, 0, GL.RGB, frameRes.w, frameRes.h, 0, GL.RGB, GL.UNSIGNED_BYTE, nil)
--- Nearest Filtering
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST)
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST)
-
------------------- Material / Specular
-dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Material)
-dtl.gl_TexImage2D(GL.TEXTURE_2D, 0, GL.RGB, frameRes.w, frameRes.h, 0, GL.RGB, GL.UNSIGNED_BYTE, nil)
--- Nearest Filtering
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST)
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST)
-
------------------- DEPTH
-dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Depth)
---dtl.gl_TexImage2D(GL.TEXTURE_2D, 0, GL.RGB, frameRes.w, frameRes.h, 0, GL.RGB, GL.UNSIGNED_BYTE, nil)
-dtl.gl_TexImage2D(GL.TEXTURE_2D, 0, GL.R32F, frameRes.w, frameRes.h, 0, GL.RED, GL.FLOAT, nil)
--- Nearest Filtering -- Might want to make linear for depth
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST)
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST)
-
-
-
--- Attach buffers
-dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT0, GL.TEXTURE_2D, texRender.Color, 0)
-dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT1, GL.TEXTURE_2D, texRender.Normal, 0)
-dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT2, GL.TEXTURE_2D, texRender.Material, 0)
-dtl.gl_FramebufferTexture2D(GL.FRAMEBUFFER, GL.COLOR_ATTACHMENT3, GL.TEXTURE_2D, texRender.Depth, 0)
-
---The depth/stencil buffer (for depth/stencil tests)
---
-local rboDepthStencil = ffi.new("GLuint[1]")
-dtl.gl_GenRenderbuffers(1, rboDepthStencil)
-dtl.gl_BindRenderbuffer(GL.RENDERBUFFER, rboDepthStencil[0])
-dtl.gl_RenderbufferStorage(GL.RENDERBUFFER, GL.DEPTH24_STENCIL8, frameRes.w, frameRes.h)
-dtl.gl_FramebufferRenderbuffer(GL.FRAMEBUFFER, GL.DEPTH_STENCIL_ATTACHMENT, GL.RENDERBUFFER, rboDepthStencil[0])
---]]
-
--- Set the list of draw buffers.
-local drawBuffers =  ffi.new("GLenum[4]")
-
-drawBuffers[0] = GL.COLOR_ATTACHMENT0
-drawBuffers[1] = GL.COLOR_ATTACHMENT1
-drawBuffers[2] = GL.COLOR_ATTACHMENT2
-drawBuffers[3] = GL.COLOR_ATTACHMENT3
-
-dtl.gl_DrawBuffers(4, drawBuffers) -- N = number of buffers
-
--- Always check that our framebuffer is ok
-if (dtl.gl_CheckFramebufferStatus(GL.FRAMEBUFFER) ~= GL.FRAMEBUFFER_COMPLETE) then
-	error("Could not create framebuffer!".. string.format("%x",dtl.gl_CheckFramebufferStatus(GL.FRAMEBUFFER)))
-end
 print("Loading shaders")
 local mainShader = shader("../shaders/main.vs", "../shaders/main.fs")
 local quadShader = shader("../shaders/draw_quad.vs", "../shaders/draw_quad.fs")
@@ -196,7 +111,7 @@ local cam = {
 	lookat = vec3(),
 	up = vec3()
 }
-cam.pos[0] = { 2, 0, 0 }
+cam.pos[0] = { 3, 3, 0 }
 cam.lookat[0] = { 0, 0, 0 }
 cam.up[0] = { 0, 1, 0 }
 
@@ -240,19 +155,16 @@ render.setShader(mainShader)
 mainShader:newUniform("MVPInv", shader.UNIFORM_MAT4F)
 mainShader:newUniform("time", shader.UNIFORM_1F)
 
-mainShader:newUniform("zNear", shader.UNIFORM_1F)
-mainShader:newUniform("zFar", shader.UNIFORM_1F)
+mainShader:newUniform("zNear", shader.UNIFORM_1F, zNear)
+mainShader:newUniform("zFar", shader.UNIFORM_1F, zFar)
 mainShader:newUniform("vFOV", shader.UNIFORM_1F)
 mainShader:newUniform("aspectRatio", shader.UNIFORM_1F)
 
-mainShader:newUniform("diffuse_t", shader.UNIFORM_1I)
-mainShader:setUniform("diffuse_t", 0)
+mainShader:newUniform("diffuse_t", shader.UNIFORM_1I, 0)
 
-mainShader:newUniform("normal_t", shader.UNIFORM_1I)
-mainShader:setUniform("normal_t", 1)
+mainShader:newUniform("normal_t", shader.UNIFORM_1I, 1)
 
-mainShader:newUniform("material_t", shader.UNIFORM_1I)
-mainShader:setUniform("material_t", 2)
+mainShader:newUniform("material_t", shader.UNIFORM_1I, 2)
 
 mainShader:newUniform("MVP", shader.UNIFORM_MAT4F)
 mainShader:setUniform("MVP", mvp)
@@ -263,8 +175,9 @@ mainShader:setUniform("MVPInv", mvp)
 mainShader:newUniform("MV", shader.UNIFORM_MAT4F)
 mainShader:setUniform("MV", mv)
 
---mainShader:setUniform("zNear", zNear)
-mainShader:setUniform("zFar", zFar)
+mainShader:newUniform("M", shader.UNIFORM_MAT4F)
+mainShader:setUniform("M", model)
+
 
 
 render.setShader(quadShader)
@@ -272,47 +185,28 @@ quadShader:newUniform("MVP", shader.UNIFORM_MAT4F)
 quadShader:setUniform("MVP", mvp)
 quadShader:newUniform("MVPInv", shader.UNIFORM_MAT4F)
 quadShader:setUniform("MVPInv", mvp)
---quadShader:newUniform("MVPInvT", shader.UNIFORM_MAT3F)
---quadShader:setUniform("MVPInvT", mvp)
---quadShader:newUniform("MV", shader.UNIFORM_MAT4F)
---quadShader:setUniform("MV", mv)
+
 quadShader:newUniform("VPInv", shader.UNIFORM_MAT4F)
 quadShader:setUniform("VPInv", vpinv)
---quadShader:newUniform("VP", shader.UNIFORM_MAT4F)
---quadShader:setUniform("VP", vp)
---quadShader:newUniform("V", shader.UNIFORM_MAT4F)
---quadShader:setUniform("V", view)
---quadShader:newUniform("P", shader.UNIFORM_MAT4F)
---quadShader:setUniform("P", projection)
+
 
 quadShader:newUniform("camera_world_pos", shader.UNIFORM_3FV)
 quadShader:setUniform("camera_world_pos", cam.pos)
 quadShader:newUniform("camera_forward", shader.UNIFORM_3FV)
 quadShader:setUniform("camera_forward", cam_forward)
---quadShader:newUniform("camera_world_pos", shader.UNIFORM_3FV)
---quadShader:setUniform("camera_world_pos", cam.pos)
 
-quadShader:newUniform("max_specular_intensity", shader.UNIFORM_1F)
-quadShader:setUniform("max_specular_intensity", 50)
+quadShader:newUniform("max_specular_intensity", shader.UNIFORM_1F, 50)
 
-quadShader:newUniform("vFOV", shader.UNIFORM_1F)
-quadShader:setUniform("vFOV", vFOV)
-quadShader:newUniform("hFOV", shader.UNIFORM_1F)
-quadShader:setUniform("hFOV", hFOV)
+quadShader:newUniform("vFOV", shader.UNIFORM_1F, vFOV)
+quadShader:newUniform("hFOV", shader.UNIFORM_1F, hFOV)
 
-quadShader:newUniform("max_specular_intensity", shader.UNIFORM_1F)
-quadShader:setUniform("max_specular_intensity", 50)
-
+quadShader:newUniform("max_specular_intensity", shader.UNIFORM_1F, 50)
 
 quadShader:newUniform("time", shader.UNIFORM_1F)
-quadShader:newUniform("renderColor", shader.UNIFORM_1I)
-quadShader:newUniform("renderNormal", shader.UNIFORM_1I)
-quadShader:newUniform("renderMaterial", shader.UNIFORM_1I)
-quadShader:newUniform("renderDepth", shader.UNIFORM_1I)
-quadShader:setUniform("renderColor", 0)
-quadShader:setUniform("renderNormal", 1)
-quadShader:setUniform("renderMaterial", 2)
-quadShader:setUniform("renderDepth", 3)
+quadShader:newUniform("renderColor", shader.UNIFORM_1I, 0)
+quadShader:newUniform("renderNormal", shader.UNIFORM_1I, 1)
+quadShader:newUniform("renderMaterial", shader.UNIFORM_1I, 2)
+quadShader:newUniform("renderDepth", shader.UNIFORM_1I, 3)
 
 dtl.keystate.w = 0
 dtl.keystate.a = 0
@@ -335,8 +229,8 @@ local max_frame_time = 0
 local min_frame_time = 99999
 local last_fps_display = time.now()
 
-do
-	local s = 5
+if false then
+	local s = 7
 	for i=-s,s do
 		for j=-s,s do
 			local e = entity()
@@ -344,9 +238,20 @@ do
 		end
 	end
 end
+local e = entity()
+e:setPos(0,0,0)
+
 local event = ffi.new("SDL_Event[1]")
+
+local begin_time = time.now()
+
+local serial, err = io.open("/dev/ttyACM0", "r")
+if not serial then print("Could not connect to serial device: "..err) end
+serial:write("a\n")
+local initialrot, lastrot
+
 while dtl.keystate.sp == 0 do
-	
+
 	local start = time.now()
 	--[[
 	print("YAW: "..dtl.cam.yaw)
@@ -360,6 +265,38 @@ while dtl.keystate.sp == 0 do
 	vec3.quatUpVec3(cam.up, cam_angle)
 	vec3.quatRightVec3(cam_right, cam_angle)
 	vec3.zero(cam_motion)
+	
+	
+	if serial then
+		-- Read until you cant
+		local l
+		local nl = serial:read()
+		while nl do
+			l = nl
+			nl = serial:read()
+		end
+		if l then
+			local y,p,r = l:match("ypr%s+(%--%d*%.%d%d)%s+(%--%d*%.%d%d)%s+(%--%d*%.%d%d)")
+			
+			y,p,r = tonumber(y), tonumber(p), tonumber(r)
+			if y and p and r then
+				print(l)
+				if not initialrot then
+					initialrot = {p, y, r}
+				end
+				e:setRotationPYR(
+					-math.rad(p - initialrot[1]), 
+					-math.rad(y - initialrot[2]), 
+					math.rad(r - initialrot[3])
+					)
+				print("GOT: ",y,p,r)
+			end
+		end
+	end
+		
+	--e:setRotationPYR(0, 0, (t) % 360)
+	
+	
 	if dtl.keystate.w == 1 then
 		vec3.add(cam_motion, cam_motion, cam_forward)
 	end
@@ -380,42 +317,32 @@ while dtl.keystate.sp == 0 do
 	vec3.scale(cam.lookat, cam_forward, 10)
 	vec3.add(cam.lookat, cam.lookat, cam.pos)
 	mat4.lookAt(mat4.iden(view), cam.pos, cam.lookat, cam.up)
-	mat4.iden(mvp)
-	mat4.mul(mvp, model, mvp)
-	mat4.mul(mvp, view, mvp)
-	mat4.mul(mvp, projection, mvp)
-	mat4.inverse(mvpinv, mvp)
-	mat3.assignMat4(mvpinvT, mvp)
-	mat3.inverse(mvpinvT, mvpinvT)
-	mat3.transpose(mvpinvT, mvpinvT)
 	mat4.mul(vp, projection, view )
-	mat4.inverse(vpinv, vp)
-	mat4.mul(mv, model, view)
-	
+
 	render.setShader(mainShader)
 	mainShader:setUniform("MV", mv)
-	mainShader:setUniform("MVP", mvp)
-	mainShader:setUniform("MVPInv", mvpinv)
 
 	dtl.gl_BindFramebuffer(GL.FRAMEBUFFER, fbo[0])
 	dtl.gl_Viewport(0,0,1280,720)
 	render.clear()
-	
+
 	dtl.gl_ActiveTexture(GL.TEXTURE0)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, tex_diffuse)
 	dtl.gl_ActiveTexture(GL.TEXTURE1)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, tex_normal)
 	dtl.gl_ActiveTexture(GL.TEXTURE2)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, tex_material)
-	
+
 	dtl.gl_BindVertexArray(cube[0].vao)
-	
+	local facesDrawn = 0
+	local drawDistanceSqr = 500
 	for i, ent in ipairs(entity.getAll()) do
+		facesDrawn = facesDrawn + cube[0].n_indices / 3
 		
 		mat4.mul(mvp, vp, ent:getMatrix())
-		--mat4.mul(mvp, projection, mvp)
+		mainShader:setUniform("M", ent:getMatrix())
 		mainShader:setUniform("MVP", mvp)
-			
+		
 		dtl.gl_DrawElements(GL.TRIANGLES,
 			cube[0].n_indices,
 			GL.UNSIGNED_INT,
@@ -429,27 +356,20 @@ while dtl.keystate.sp == 0 do
 	quadShader:setUniform("camera_world_pos", cam.pos)
 	quadShader:setUniform("camera_forward", cam_forward)
 	quadShader:setUniform("MVP", mvp)
---	quadShader:setUniform("MV", mv)
---	quadShader:setUniform("VP", vp)
-	quadShader:setUniform("VPInv", vpinv)
-	quadShader:setUniform("MVPInv", mvpinv)
---	quadShader:setUniform("MVPInvT", mvpinvT)
+
 	quadShader:setUniform("time", t)
---	quadShader:setUniform("V", view)
---	quadShader:setUniform("P", projection)
-	
 	dtl.gl_ActiveTexture(GL.TEXTURE0)
-	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Color)
-	
+	dtl.gl_BindTexture(GL.TEXTURE_2D, render.GBuffer.Color)
+
 	dtl.gl_ActiveTexture(GL.TEXTURE1)
-	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Normal)
-	
+	dtl.gl_BindTexture(GL.TEXTURE_2D, render.GBuffer.Normal)
+
 	dtl.gl_ActiveTexture(GL.TEXTURE2)
-	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Material)
-	
+	dtl.gl_BindTexture(GL.TEXTURE_2D, render.GBuffer.Material)
+
 	dtl.gl_ActiveTexture(GL.TEXTURE3)
-	dtl.gl_BindTexture(GL.TEXTURE_2D, texRender.Depth)
-	
+	dtl.gl_BindTexture(GL.TEXTURE_2D, render.GBuffer.Depth)
+
 	dtl.gl_BindVertexArray(quad[0].vao)
 	--dtl.gl_BindBuffer(GL.ELEMENT_ARRAY_BUFFER, quad[0].element_buffer)	
 	dtl.gl_DrawElements(GL.TRIANGLES,
@@ -457,9 +377,9 @@ while dtl.keystate.sp == 0 do
 		GL.UNSIGNED_INT,
 		nil
 	)
-	
+
 	sdl.SDL_GL_SwapWindow(info[0].window)
-	
+
 	local frame_end = time.now()
 	local frametime = time.diff(frame_end, start)
 	frames_counter = frames_counter + 1
@@ -468,10 +388,11 @@ while dtl.keystate.sp == 0 do
 	if frametime < min_frame_time then min_frame_time = frametime end
 	if time.diff(frame_end, last_fps_display) > 1000.0 then
 		print(
-			string.format("FPS: %3.1f  AVG MS: %3.3f MIN: %3.3f MAX: %4.3f", 
+			string.format("FPS: %3.1f  AVG MS: %3.3f MIN: %3.3f MAX: %4.3f FACES %d", 
 			frames_counter*1000/frames_time,
 			frames_time/frames_counter,
-			min_frame_time, max_frame_time)
+			min_frame_time, max_frame_time,
+			facesDrawn)
 		)
 		frames_counter = 0
 		min_frame_time = 99999
@@ -479,10 +400,10 @@ while dtl.keystate.sp == 0 do
 		frames_time = 0
 		last_fps_display = time.now()
 	end
-	
-	
+
+
 	--Clamp to ~60fps TODO: waste less time here? or remove (and use VSYNC)
-	sleep(math.max(16,(16-time.diff(time.now(), start)))/2000)
+	--sleep(math.min(16,(16-time.diff(time.now(), start)))/2000)
 end
 
 dtl.gl_DisableVertexAttribArray(0)

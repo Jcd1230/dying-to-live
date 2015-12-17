@@ -1,13 +1,15 @@
 #version 330
 
-uniform highp mat4 MVP;
-uniform highp mat4 MV;
+struct light {
+	vec3 pos;
+	vec3 color;
+	float energy;
+};
+
 uniform highp mat4 VP;
 uniform highp mat4 P;
 uniform highp mat4 V;
 uniform highp mat4 VPInv;
-uniform highp mat4 MVPInv;
-uniform highp mat3 MVPInvT;
 uniform highp float time;
 uniform highp float max_specular_intensity;
 
@@ -22,7 +24,6 @@ uniform sampler2D renderNormal;
 uniform sampler2D renderMaterial;
 uniform sampler2D renderDepth;
 
-
 precision highp float;
 
 const float PI = 3.1415926;
@@ -35,11 +36,6 @@ float rand(vec2 co){
   return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
 
-struct light {
-	vec3 pos;
-	vec3 color;
-	float energy;
-};
 
 vec3 mod289(vec3 x) {
   return x - floor(x * (1.0 / 289.0)) * 289.0;
@@ -146,7 +142,8 @@ float snoise(vec3 v)
 /*/
 
 float mod289(float x) {
-  return x - floor(x * (1.0 / 289.0)) * 289.0; }
+  return x - floor(x * (1.0 / 289.0)) * 289.0; 
+}
 
 float permute(float x) {
      return mod289(((x*34.0)+1.0)*x);
@@ -248,65 +245,6 @@ float snoise(vec4 v)
 			   + dot(m1*m1, vec2( dot( p3, x3 ), dot( p4, x4 ) ) ) ) ;
 
 }
-/*
-void main()
-{
-	vec2 uv = screen_pos;
-	uv = mod(screen_pos, vec2(0.5,0.5)) * 2.0; //QUAD VIEW
-	
-	float depth = texture(renderDepth, uv).r;
-	vec4 NDC = vec4(1.0);
-	NDC.x = uv.x*2.0 - 1.0;
-	NDC.y = uv.y*2.0 - 1.0;
-	NDC.z = depth;
-	NDC.w = 1.0;
-	vec4 CLIP = MVPInv * NDC;
-	vec3 world_pos = CLIP.xyz/CLIP.w;
-	
-	//Texture accesses
-	vec3 albedo = texture(renderColor, uv).rgb;
-	vec3 normalColor = texture(renderNormal, uv).rgb;
-	vec3 material = texture(renderMaterial, uv).rgb;
-	
-	float specular_intensity = max(0.01, max_specular_intensity * material.r);
-	float specular_weight = material.r;
-	
-
-	
-	vec3 normal = normalize((normalColor - vec3(0.5))*2.0);
-	
-	float hasObject = step(0.01, dot(normalColor, normalColor));
-	
-	//Lighting
-	light l1; //hard coded light
-	l1.pos = vec3(10.0*cos(time), 5.0, 10.0*sin(time));
-	l1.color = vec3(1.0);
-	l1.energy = 10.0;
-	
-	vec3 light_to_frag = normalize(l1.pos - world_pos);
-	vec3 frag_to_cam = normalize(world_pos - camera_world_pos);
-	vec3 ambient = vec3(0.05) * albedo;
-	vec3 diffuse = clamp(dot(normal,light_to_frag),0.0,1.0) * albedo;
-	
-	vec3 halfAngle = reflect(light_to_frag, normal);
-	float specularAmt = clamp(dot(frag_to_cam, halfAngle), 0.0, 1.0);
-	specularAmt = pow(specularAmt, specular_intensity);
-	vec3 specular = vec3(specularAmt) * specular_weight;
-
-	vec3 final = clamp(diffuse, ambient, vec3(1.0)) + specular;
-	final *= hasObject;
-	//final = pow(final, vec3(2.2));
-	
-	vec3 upleft = specular * hasObject;
-	
-	// QUAD SPLIT VIEW
-	color =  (diffuse) * (1.0-step(0.5, screen_pos.y)) * (1.0 - step(0.5, screen_pos.x)); //LOWER LEFT
-	color += (normalColor) * (1.0 - step(0.5, screen_pos.y)) * step(0.5, screen_pos.x); //LOWER RIGHT
-	color += (upleft) * step(0.5, screen_pos.y) * (1.0 - step(0.5, screen_pos.x)); //UPPER LEFT
-	color += (final) * step(0.5, screen_pos.y) * step(0.5, screen_pos.x); //UPPER RIGHT
-
-	return;
-}*/
 
 vec3 OrenNayar(
 	float roughness,
@@ -327,6 +265,9 @@ vec3 OrenNayar(
 	vec3 A = 1.0 + sigma2 * (albedo / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
 	float B = 0.45 * sigma2 / (sigma2 + 0.09);
 
+	if (NdotL < 0.0) {
+		return vec3(1.0,0.0,0.0);
+	}
 	return (albedo) * max(0.0, NdotL) * (A + vec3(B * s / t)) / PI;
 }
 
@@ -381,6 +322,25 @@ float cookTorranceSpecular(
   return  G * F * D / max(3.14159265 * VdotN, 0.000001);
 }
 
+// Default normal decode
+
+vec3 decode(vec3 encoded) {
+	return normalize((encoded - vec3(0.5))*2.0);
+} 
+
+
+// Spherically encoded normal
+/*
+vec3 decode(vec3 encoded) {
+	vec2 fenc = encoded.xy*4-2;
+	float f = dot(fenc, fenc);
+	float g = sqrt(1-f/4);
+	vec3 n;
+	n.xy = fenc*g;
+	n.z = 1-f/2;
+	return n;
+} 
+*/
 void main() //WARD + OREN NAYAR WIP
 {
 	vec2 uv = screen_pos;
@@ -413,20 +373,20 @@ void main() //WARD + OREN NAYAR WIP
 	float specular_intensity = max(0.01, max_specular_intensity * material.r);
 	float specular_weight = material.r;
 
-	vec3 normal = normalize((normalColor - vec3(0.5))*2.0);
+	vec3 normal = decode(normalColor);
 
 	float hasObject = sign(dot(normalColor,normalColor));
 
 	//Lighting
 	int n_lights = 2;
 	light lights[2];
-	lights[0].pos = vec3(10.0*cos(time), 5.0, 10.0*sin(time));
-	lights[0].color = vec3(1.0, 0.1, 0.1);
-	lights[0].energy = 10.0;
+	lights[0].pos = camera_world_pos;
+	lights[0].color = vec3(1.0, 1.0, 1.0);
+	lights[0].energy = 100.0;
 	lights[1].pos = vec3(5.0, 5.0, 5.0);
 	lights[1].color = vec3(0.0, 1.0, 1.0);
-	lights[1].energy = 10.0; //15.0*(sin(time)+1.0);
-	
+	lights[1].energy = 0.0; 
+
 	float roughness = 0.5;
 	float fresnel = 1.6;
 	vec3 final = vec3(0.0);
@@ -434,41 +394,51 @@ void main() //WARD + OREN NAYAR WIP
 	vec3 diffuse = vec3(0.0);
 	float specular = 0.0;
 	
+	vec3 hangingPoint = vec3(0.0, 20.0, 0.0);
+	float cosLightSpread = -1.0;
+	
+	vec3 upleft;
+	
 	for (int i = 0; i < n_lights; i++) {
 		vec3 lightDirection = normalize(lights[i].pos - world_pos); //direction to light
-		float dist_to_light = length(lights[i].pos - world_pos);
-		float energy = lights[i].energy/(dist_to_light);
+		vec3 TdirectionOfLamp = normalize(lights[i].pos - hangingPoint);
+		if (dot(-lightDirection, TdirectionOfLamp) > cosLightSpread) {
+			float dist_to_light = length(lights[i].pos - world_pos);
+			float energy = lights[i].energy/(dist_to_light);
+			
+			float ctSpec = cookTorranceSpecular
+			(
+				lightDirection,
+				viewDirection,
+				normal,
+				roughness,
+				fresnel
+			);
 
-		float ctSpec = cookTorranceSpecular
-		(
-			lightDirection,
-			viewDirection,
-			normal,
-			roughness,
-			fresnel
-		);
+			float remainingEnergy = max(0.0, energy - specular);
+			
+			vec3 ONDiffuse = OrenNayar
+			(
+				roughness,
+				albedo,
+				lightDirection,
+				viewDirection,
+				normal
+			);			
 
-		float remainingEnergy = max(0.0, energy - specular);
-		
-		vec3 ONDiffuse = OrenNayar
-		(
-			roughness,
-			albedo,
-			lightDirection,
-			viewDirection,
-			normal
-		);
-
-		diffuse += ONDiffuse * remainingEnergy * lights[i].color;
-		specular += ctSpec * energy;
+			diffuse += ONDiffuse * remainingEnergy * lights[i].color;
+			specular += ctSpec * energy;
+		}
 	}
 	
 	final = diffuse + vec3(specular);
 	final *= hasObject;
 	final = final/(final + vec3(1.0));
 	
-	vec3 upleft = vec3(specular) * hasObject;
-
+	upleft = vec3(specular) * hasObject;
+	
+	
+	//upleft = normal;
 	// QUAD SPLIT VIEW
 	color =  (diffuse * hasObject) * (1.0-step(0.5, screen_pos.y)) * (1.0 - step(0.5, screen_pos.x)); //LOWER LEFT
 	color += (normalColor) * (1.0 - step(0.5, screen_pos.y)) * step(0.5, screen_pos.x); //LOWER RIGHT

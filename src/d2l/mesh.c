@@ -69,7 +69,7 @@ int loadmeshes(const char* filename, struct mesh **meshes_in, int n_meshes_out)
 				meshes[i].v_uv[j*3+1] = uv.y;
 				meshes[i].v_uv[j*3+2] = uv.z;
 			} else {
-				printf("Mesh is missing UV textures coordinates (mesh.c)\n");
+				printf("Mesh is missing UV textures coordinates (mesh.c: %d)\n", __LINE__);
 				exit(1);
 				meshes[i].v_uv[j*3+0] = 0.0;
 				meshes[i].v_uv[j*3+1] = 0.0;

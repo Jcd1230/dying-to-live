@@ -23,6 +23,21 @@ layout(location = 1) out highp vec3 renderNormal;
 layout(location = 2) out highp vec3 renderMaterial;
 layout(location = 3) out highp float renderDepth;
 
+// Default  Encoding
+
+vec3 encode(vec3 normal) {
+	return (normal*0.5) + vec3(0.5);
+}
+
+
+// Spherical Encoding
+/*
+vec3 encode(vec3 normal) {
+	float f = sqrt(8*normal.z + 8);
+	return vec3(normal.xy/f + 0.5, 0.0);
+}
+*/
+
 void main()
 {
 	vec3 albedo = texture(diffuse_t, vertex_uv).rgb;
@@ -35,7 +50,7 @@ void main()
 	mappedNormal = mix(vertex_normal, mappedNormal,  0.75); //0.75 = normal map "strength" (1.0, full affect, 0.0, use vertex normal)
 	//mappedNormal = vertex_normal;
 	renderColor = albedo;
-	renderNormal = (mappedNormal*0.5) + vec3(0.5);
+	renderNormal = encode(mappedNormal);
 	renderMaterial = material;
 	renderDepth = (frag_depth-zNear)/(zFar-zNear);
 	
