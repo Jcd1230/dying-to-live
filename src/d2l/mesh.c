@@ -3,6 +3,7 @@
 
 int loadmeshes(const char* filename, struct mesh **meshes_in, int n_meshes_out)
 {
+	printf("Loading model %s\n", filename);
 	const struct aiScene* scene = aiImportFile(filename,
 			aiProcess_CalcTangentSpace |
 			aiProcess_Triangulate |
@@ -48,6 +49,7 @@ int loadmeshes(const char* filename, struct mesh **meshes_in, int n_meshes_out)
 			meshes[i].v_pos[j*3+0] = pos.x;
 			meshes[i].v_pos[j*3+1] = pos.y;
 			meshes[i].v_pos[j*3+2] = pos.z;
+			//printf("%f.2  %f.2  %f.2\n", pos.x, pos.y, pos.z);
 			//printf("Setting up nor\n");
 			if (scene->mMeshes[i]->mNormals != NULL) {
 				normal = scene->mMeshes[i]->mNormals[j];
@@ -55,7 +57,6 @@ int loadmeshes(const char* filename, struct mesh **meshes_in, int n_meshes_out)
 				meshes[i].v_normal[j*3+0] = normal.x;
 				meshes[i].v_normal[j*3+1] = normal.y;
 				meshes[i].v_normal[j*3+2] = normal.z;
-				//printf("Setting up tan\n");
 			} else {
 				printf("Mesh is missing vertex normals (mesh.c)\n");
 				exit(1);

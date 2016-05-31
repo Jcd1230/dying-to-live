@@ -36,7 +36,6 @@ float rand(vec2 co){
   return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
 
-
 vec3 mod289(vec3 x) {
   return x - floor(x * (1.0 / 289.0)) * 289.0;
 }
@@ -266,7 +265,7 @@ vec3 OrenNayar(
 	float B = 0.45 * sigma2 / (sigma2 + 0.09);
 
 	if (NdotL < 0.0) {
-		return vec3(1.0,0.0,0.0);
+		return vec3(0.0,0.0,0.0);
 	}
 	return (albedo) * max(0.0, NdotL) * (A + vec3(B * s / t)) / PI;
 }
@@ -341,7 +340,7 @@ vec3 decode(vec3 encoded) {
 	return n;
 } 
 */
-void main() //WARD + OREN NAYAR WIP
+void main()
 {
 	vec2 uv = screen_pos;
 	uv = mod(screen_pos, vec2(0.5,0.5)) * 2.0; //QUAD VIEW
@@ -380,63 +379,57 @@ void main() //WARD + OREN NAYAR WIP
 	//Lighting
 	int n_lights = 2;
 	light lights[2];
-	lights[0].pos = camera_world_pos;
-	lights[0].color = vec3(1.0, 1.0, 1.0);
-	lights[0].energy = 100.0;
-	lights[1].pos = vec3(5.0, 5.0, 5.0);
-	lights[1].color = vec3(0.0, 1.0, 1.0);
-	lights[1].energy = 0.0; 
+	lights[0].pos = vec3(cos(time)*10.0, sin(time)*10.0, 10.0);
+	lights[0].color = vec3(0.0, 1.0, 0.0);
+	lights[0].energy = 50.0;
+	lights[1].pos = vec3(5.0, 5.0, 15.0);
+	lights[1].color = vec3(1.0, 1.0, 1.0);
+	lights[1].energy = 75.0; 
 
-	float roughness = 0.5;
+	float roughness = 0.05;
 	float fresnel = 1.6;
 	vec3 final = vec3(0.0);
 	vec3 viewDirection = normalize(camera_world_pos - world_pos); //direction to camera from frag
 	vec3 diffuse = vec3(0.0);
-	float specular = 0.0;
-	
-	vec3 hangingPoint = vec3(0.0, 20.0, 0.0);
-	float cosLightSpread = -1.0;
-	
+	vec3 specular = vec3(0.0);
+
 	vec3 upleft;
 	
 	for (int i = 0; i < n_lights; i++) {
 		vec3 lightDirection = normalize(lights[i].pos - world_pos); //direction to light
-		vec3 TdirectionOfLamp = normalize(lights[i].pos - hangingPoint);
-		if (dot(-lightDirection, TdirectionOfLamp) > cosLightSpread) {
-			float dist_to_light = length(lights[i].pos - world_pos);
-			float energy = lights[i].energy/(dist_to_light);
-			
-			float ctSpec = cookTorranceSpecular
-			(
-				lightDirection,
-				viewDirection,
-				normal,
-				roughness,
-				fresnel
-			);
+		float dist_to_light = length(lights[i].pos - world_pos);
+		float energy = lights[i].energy/(dist_to_light);
+		
+		float ctSpec = cookTorranceSpecular
+		(
+			lightDirection,
+			viewDirection,
+			normal,
+			roughness,
+			fresnel
+		);
 
-			float remainingEnergy = max(0.0, energy - specular);
-			
-			vec3 ONDiffuse = OrenNayar
-			(
-				roughness,
-				albedo,
-				lightDirection,
-				viewDirection,
-				normal
-			);			
+		float remainingEnergy = max(0.0, energy - (ctSpec * energy));
+		
+		vec3 ONDiffuse = OrenNayar
+		(
+			roughness,
+			albedo,
+			lightDirection,
+			viewDirection,
+			normal
+		);			
 
-			diffuse += ONDiffuse * remainingEnergy * lights[i].color;
-			specular += ctSpec * energy;
-		}
+		diffuse += ONDiffuse * remainingEnergy * lights[i].color;
+		specular += ctSpec * energy * lights[i].color;
 	}
 	
-	final = diffuse + vec3(specular);
+	final = diffuse + specular;
 	final *= hasObject;
 	final = final/(final + vec3(1.0));
 	
-	upleft = vec3(specular) * hasObject;
-	
+	upleft = specular * hasObject;
+	//upleft = vec3(depth);
 	
 	//upleft = normal;
 	// QUAD SPLIT VIEW

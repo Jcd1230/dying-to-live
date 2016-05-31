@@ -21,11 +21,11 @@ _M.vec3 = vec3
 --_M.vec3 = ffi.metatype("kmVec3", vec3)
 
 local mat3 = {	
-	mul = km.kmMat3Multiply,
+	mul = km.kmMat3MultiplyMat3,
+	mulscalar = km.kmMat3MultiplyScalar,
 	iden = km.kmMat3Identity,
 	inverse = km.kmMat3Inverse,
-	transpose = km.kmMat3Transpose,
-	assignMat4 = km.kmMat3AssignMat4
+	transpose = km.kmMat3Transpose
 }
 setmetatable(mat3, {
 	__call = function(self, size)

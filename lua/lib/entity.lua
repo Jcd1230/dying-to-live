@@ -50,8 +50,8 @@ end
 function _M:setRotationPYR(pitch, yaw, roll)
 	self.matrixInvalidated = true
 	self.rot.p = pitch
-	self.rot.y = yaw
-	self.rot.r = roll
+	self.rot.y = roll -- YAW and ROLL switched because kazmath assumes yaw rotates
+	self.rot.r = yaw -- around Y axis not Z
 end
 
 function _M:setModel(modelpath)

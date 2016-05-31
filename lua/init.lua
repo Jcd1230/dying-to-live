@@ -80,23 +80,21 @@ print("GL VERSION: "..majorv[0].."."..minorv[0])
 print("GLSL VERSION: "..ffi.string(dtl.gl_GetString(GL.SHADING_LANGUAGE_VERSION)))
 
 shader.init()
+
 print("Loading mesh...")
 local cube = ffi.new("struct mesh[1]")
 local quad = ffi.new("struct mesh[1]")
-dtl.loadmesh("../assets/plane.x", cube)
+local sphere = ffi.new("struct mesh[1]")
+dtl.loadmesh("../assets/sphere.x", sphere)
+dtl.loadmesh("../assets/spaghetti.obj", cube)
 dtl.loadmesh("../assets/quad.obj", quad)
+
 print("Loading texture...")
 local tex_diffuse = tex.getTextureID("grey.png")
 --local tex_diffuse = tex.getTextureID("brick1.png")
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT)
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
 local tex_normal = tex.getTextureID("flat_normal.png")
 --local tex_normal = tex.getTextureID("brick1n.png")
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT)
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
 local tex_material = tex.getTextureID("grey.png")
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT)
-dtl.gl_TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT)
 
 print("Creating framebuffer")
 
@@ -113,7 +111,7 @@ local cam = {
 }
 cam.pos[0] = { 3, 3, 0 }
 cam.lookat[0] = { 0, 0, 0 }
-cam.up[0] = { 0, 1, 0 }
+cam.up[0] = { 0, 0, 1 }
 
 local zNear = 0.1
 local zFar = 50
@@ -214,7 +212,7 @@ dtl.keystate.s = 0
 dtl.keystate.d = 0
 dtl.keystate.sp = 0
 dtl.cam.yaw = 1.6
-dtl.cam.pitch = 0
+dtl.cam.pitch = math.pi/2
 dtl.gl_Enable(GL.DEPTH_TEST)
 dtl.gl_DepthFunc(GL.LESS)
 dtl.gl_Enable(GL.CULL_FACE)
@@ -229,26 +227,20 @@ local max_frame_time = 0
 local min_frame_time = 99999
 local last_fps_display = time.now()
 
-if false then
-	local s = 7
+if true then
+	local s = 2
 	for i=-s,s do
 		for j=-s,s do
 			local e = entity()
-			e:setPos(i*2.1,math.random()*2-1,j*2.1)
+			e:setPos(i*5.1,j*5.1,math.random()*2-1)
 		end
 	end
 end
-local e = entity()
-e:setPos(0,0,0)
+
 
 local event = ffi.new("SDL_Event[1]")
 
 local begin_time = time.now()
-
-local serial, err = io.open("/dev/ttyACM0", "r")
-if not serial then print("Could not connect to serial device: "..err) end
-serial:write("a\n")
-local initialrot, lastrot
 
 while dtl.keystate.sp == 0 do
 
@@ -257,45 +249,14 @@ while dtl.keystate.sp == 0 do
 	print("YAW: "..dtl.cam.yaw)
 	print("PITCH:"..dtl.cam.pitch)
 	print(("POS: %.2f | %.2f | %.2f"):format(cam.pos[0].x, cam.pos[0].y, cam.pos[0].z))
-	print(hFOV, vFOV, math.deg(hFOV), math.deg(vFOV))--]]
+	print(hFOV, vFOV, math.deg(hFOV), math.deg(vFOV)) --]]
 	dtl.handle_events(event)
 	t = t + 1/60;
-	quat.rotationPYR(cam_angle, dtl.cam.pitch, dtl.cam.yaw, 0)
+	quat.rotationPYR(cam_angle, dtl.cam.pitch, 0, dtl.cam.yaw) -- Yaw and roll swapped for kazmath y-up
 	vec3.quatForwardVec3RH(cam_forward, cam_angle)
 	vec3.quatUpVec3(cam.up, cam_angle)
 	vec3.quatRightVec3(cam_right, cam_angle)
 	vec3.zero(cam_motion)
-	
-	
-	if serial then
-		-- Read until you cant
-		local l
-		local nl = serial:read()
-		while nl do
-			l = nl
-			nl = serial:read()
-		end
-		if l then
-			local y,p,r = l:match("ypr%s+(%--%d*%.%d%d)%s+(%--%d*%.%d%d)%s+(%--%d*%.%d%d)")
-			
-			y,p,r = tonumber(y), tonumber(p), tonumber(r)
-			if y and p and r then
-				print(l)
-				if not initialrot then
-					initialrot = {p, y, r}
-				end
-				e:setRotationPYR(
-					-math.rad(p - initialrot[1]), 
-					-math.rad(y - initialrot[2]), 
-					math.rad(r - initialrot[3])
-					)
-				print("GOT: ",y,p,r)
-			end
-		end
-	end
-		
-	--e:setRotationPYR(0, 0, (t) % 360)
-	
 	
 	if dtl.keystate.w == 1 then
 		vec3.add(cam_motion, cam_motion, cam_forward)
@@ -322,10 +283,10 @@ while dtl.keystate.sp == 0 do
 	render.setShader(mainShader)
 	mainShader:setUniform("MV", mv)
 
+
 	dtl.gl_BindFramebuffer(GL.FRAMEBUFFER, fbo[0])
 	dtl.gl_Viewport(0,0,1280,720)
 	render.clear()
-
 	dtl.gl_ActiveTexture(GL.TEXTURE0)
 	dtl.gl_BindTexture(GL.TEXTURE_2D, tex_diffuse)
 	dtl.gl_ActiveTexture(GL.TEXTURE1)

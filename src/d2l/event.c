@@ -15,9 +15,9 @@ void handle_events(SDL_Event* event)
 			cam.pitch = fminf(
 					fmaxf(
 						(cam.pitch - (float)event->motion.yrel*pitch_sensitivity),
-						-PI/2.0 + 0.01 //0.01 safe zone to prevent camera flipping
+						0.01 //0.01 safe zone to prevent camera flipping
 					),
-					PI/2.0 - 0.01
+					PI - 0.01
 				);
 			break;
 		case SDL_KEYDOWN:
