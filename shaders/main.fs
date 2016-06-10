@@ -5,8 +5,6 @@ uniform sampler2D normal_t;
 uniform sampler2D material_t;
 
 uniform highp float time;
-uniform highp float zNear;
-uniform highp float zFar;
 
 precision highp float;
 
@@ -16,7 +14,7 @@ in highp vec3 vertex_bitangent;
 in highp vec2 vertex_uv;
 in highp float frag_depth;
 in highp vec3 screen_pos;
-in highp vec3 world_pos;
+in highp vec3 view_pos;
 
 layout(location = 0) out highp vec3 renderColor;
 layout(location = 1) out highp vec3 renderNormal;
@@ -52,7 +50,6 @@ void main()
 	renderColor = albedo;
 	renderNormal = encode(mappedNormal);
 	renderMaterial = material;
-	renderDepth = (frag_depth-zNear)/(zFar-zNear);
-	
+	renderDepth = -view_pos.z;
 	return;
 }

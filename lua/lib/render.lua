@@ -15,6 +15,8 @@ local activeShader = nil
 
 local rboDepthStencil, drawBuffers, texRenders, frameRes, fbo
 
+local screenSize = { w = 1280, h = 720 } 
+local frameRes = { w = 1280/2, h = 720 }
 
 _M.setUniform = function(shader, name, value)
 	local uni = shader.uniforms[name]
@@ -49,7 +51,6 @@ _M.init = function()
 
 
 	-- The texture we're going to render to
-	frameRes = { w = 1280, h = 720 }
 	texRenders = ffi.new("GLuint[4]")
 	dtl.gl_GenTextures(4, texRenders)
 	_M.GBuffer = {
@@ -120,6 +121,14 @@ _M.init = function()
 		error("Could not create framebuffer!".. string.format("%x",dtl.gl_CheckFramebufferStatus(GL.FRAMEBUFFER)))
 	end
 	return fbo
+end
+
+_M.getFrameRes = function()
+	return frameRes.w, frameRes.h
+end
+
+_M.getScreenSize = function()
+	return screenSize.w, screenSize.h
 end
 
 return _M

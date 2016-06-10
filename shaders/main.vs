@@ -14,6 +14,7 @@ struct light {
 };
 
 uniform mat4 MVP;
+uniform mat4 MV;
 uniform mat4 M;
 uniform float time;
 
@@ -23,7 +24,7 @@ out vec3 vertex_bitangent;
 out vec2 vertex_uv;
 out float frag_depth;
 out vec3 screen_pos;
-out vec3 world_pos;
+out vec3 view_pos;
 
 void main()
 {
@@ -35,14 +36,14 @@ void main()
 	highp vec4 v = vec4(vp_modelspace, 1.0);
 	vec4 vpos = MVP*v;	
 	
-	vertex_normal = (M*vec4(v_normal, 0.0)).xyz;
+	vertex_normal = (MV*vec4(v_normal, 0.0)).xyz;
 	vertex_tangent = v_tangent;
 	vertex_uv = v_uv.xy;
 	
 	screen_pos = vpos.xyz;
 	//frag_depth = vpos.z/vpos.w;
 	frag_depth = vpos.z;
-	world_pos = vp_modelspace.xyz;
+	view_pos = (MV*v).xyz;
 	
 	gl_Position = vpos;
 }

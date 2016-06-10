@@ -15,6 +15,12 @@ local assetsDir = "../assets/"
 local textureBank = {}
 
 function _M.getTextureID(assetPath)
+	if textureBank[assetPath] then
+		return textureBank[assetPath]
+	else
+		print("Loading texture: "..assetPath)
+	end
+	
 	if not file_exists(assetsDir..assetPath) then
 		error("COULD NOT FIND TEXTURE '"..assetPath.."'!!!")
 	end

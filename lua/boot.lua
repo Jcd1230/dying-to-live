@@ -1,4 +1,4 @@
-package.path = package.path..";../lua/?.lua;../lua/lib/?.lua"
+package.path = package.path..";../lua/?.lua;../lua/lib/?.lua;../lua/lib/?/init.lua"
 
 local ffi = require"ffi"
 
@@ -16,7 +16,10 @@ int poll(struct pollfd *fds, unsigned long nfds, int timeout);
 
 DEBUG = true and ffi.os == 'Linux'
 
-local md = require("mobdebug")
+local md
+if ffi.os == 'Linux' then
+	md = require("mobdebug")
+end
 
 setmetatable(_G, {
 	__newindex = function (_, n)

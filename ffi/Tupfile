@@ -1,4 +1,4 @@
 INCLUDES =  -I../src/SDL2-2.0.3/include
 INCLUDES += -I../src/d2l
 
-: stub.c |> gcc $(INCLUDES) -E %f | grep -E '^([^#]|#pragma)' > %o |> ffi_defs.h
+: stub.c |> gcc -E $(INCLUDES) %f | grep -E '^([^#]|#pragma)' | grep -v '^static const' > %o |> ffi_defs.h

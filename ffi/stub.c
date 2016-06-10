@@ -7,3 +7,4 @@
 #include <mesh.h>
 #include <event.h>
 #include <time.h>
+#include <vr.h>

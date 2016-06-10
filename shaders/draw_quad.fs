@@ -14,10 +14,8 @@ uniform highp float time;
 uniform highp float max_specular_intensity;
 
 uniform highp float vFOV;
-uniform highp float hFOV;
 
-uniform highp vec3 camera_world_pos;
-uniform highp vec3 camera_forward;
+uniform highp float aspectRatio;
 
 uniform sampler2D renderColor;
 uniform sampler2D renderNormal;
@@ -27,6 +25,7 @@ uniform sampler2D renderDepth;
 precision highp float;
 
 const float PI = 3.1415926;
+const float minFloat= 1.e-6; 
 
 in highp vec2 screen_pos;
 
@@ -48,13 +47,11 @@ vec4 permute(vec4 x) {
      return mod289(((x*34.0)+1.0)*x);
 }
 
-vec4 taylorInvSqrt(vec4 r)
-{
+vec4 taylorInvSqrt(vec4 r) {
   return 1.79284291400159 - 0.85373472095314 * r;
 }
 
-float snoise(vec3 v)
-{ 
+float snoise(vec3 v) { 
 	const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
 	const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
 
@@ -148,13 +145,11 @@ float permute(float x) {
      return mod289(((x*34.0)+1.0)*x);
 }
 
-float taylorInvSqrt(float r)
-{
+float taylorInvSqrt(float r) {
   return 1.79284291400159 - 0.85373472095314 * r;
 }
 
-vec4 grad4(float j, vec4 ip)
-{
+vec4 grad4(float j, vec4 ip) {
 	const vec4 ones = vec4(1.0, 1.0, 1.0, -1.0);
 	vec4 p,s;
 
@@ -167,8 +162,7 @@ vec4 grad4(float j, vec4 ip)
 }
 					
 #define F4 0.309016994374947451
-float snoise(vec4 v)
-{
+float snoise(vec4 v) {
 	const vec4  C = vec4( 0.138196601125011,  // (5 - sqrt(5))/20  G4
 						0.276393202250021,  // 2 * G4
 						0.414589803375032,  // 3 * G4
@@ -321,6 +315,26 @@ float cookTorranceSpecular(
   return  G * F * D / max(3.14159265 * VdotN, 0.000001);
 }
 
+
+vec4 Ward(vec3 L, vec3 N, vec3 V, float alphaX, float alphaY, vec4 Pd, vec4 Ps)
+{
+    vec3 H= normalize(L+V);
+    float NdotL= max(dot(N,L),0.0);
+    float NdotV= max(dot(N,V),0.0);
+
+    vec3 e= vec3(0.0,0.0,-1.0);
+    vec3 T= normalize(cross(N,e));
+    vec3 B= normalize(cross(N,T));
+    float HdotT= max(dot(H,T),0.0);
+    float HdotB= max(dot(H,B),0.0);
+    float HdotN= max(dot(H,N),0.0);
+
+    float beta= -2.0 * ( pow(HdotN/alphaX, 2.0) + pow(HdotB/alphaY,2.0) ) / (1.0 + HdotN);
+    float den= max(minFloat, 4.0 * PI * alphaX * alphaY * sqrt(NdotL * NdotV) );
+    vec4 specular= Ps * 1.0/den * exp(beta);
+    return (Pd + specular) * NdotL;
+}
+
 // Default normal decode
 
 vec3 decode(vec3 encoded) {
@@ -343,26 +357,22 @@ vec3 decode(vec3 encoded) {
 void main()
 {
 	vec2 uv = screen_pos;
-	uv = mod(screen_pos, vec2(0.5,0.5)) * 2.0; //QUAD VIEW
+	//uv = mod(screen_pos, vec2(0.5,0.5)) * 2.0; //QUAD VIEW
 
 	float depth = texture(renderDepth, uv).r;
 
-	float zFar = 50.0; // TODO: CONVERT TO UNIFORM
-	float zNear = 0.1; // ^
-	float dist = zNear + depth*(zFar-zNear);
 	vec2 ray = (uv*2.0) - vec2(1.0);
-	vec3 cam_forward = normalize(camera_forward);
-	vec3 cam_right = normalize(cross(cam_forward, vec3(0.0,1.0,0.0)));
-	vec3 cam_up = normalize(cross(cam_forward, cam_right));
-	vec3 world_pos = camera_world_pos;
-	world_pos += normalize(cam_forward) * dist;
+	vec3 cam_forward = vec3(0.0,0.0,1.0);
+	vec3 cam_right = vec3(1.0,0.0,0.0);
+	vec3 cam_up = vec3(0.0,1.0,0.0);
 
-	float cam_top = dist*tan(vFOV);
-	vec2 cam_topright = vec2(cam_top*16.0/9.0, cam_top);
-	vec2 cam_ray = (uv*2.0 - vec2(1.0)) * cam_topright;
-	world_pos += cam_right*(cam_ray.x);
-	world_pos += cam_up*(-cam_ray.y);
+	float yTan = tan(vFOV/2.0);
+	float xTan = yTan*aspectRatio;
 	
+	float view_y = (uv.y*2.0-1.0)*yTan*depth;
+	float view_x = (uv.x*2.0-1.0)*xTan*depth;
+	
+	vec3 view_pos = vec3(view_x, view_y, -depth);
 	
 	//Texture accesses
 	vec3 albedo = texture(renderColor, uv).rgb;
@@ -379,26 +389,27 @@ void main()
 	//Lighting
 	int n_lights = 2;
 	light lights[2];
-	lights[0].pos = vec3(cos(time)*10.0, sin(time)*10.0, 10.0);
-	lights[0].color = vec3(0.0, 1.0, 0.0);
-	lights[0].energy = 50.0;
-	lights[1].pos = vec3(5.0, 5.0, 15.0);
+	lights[0].pos = vec3(cos(time)*5.0, 5.0, sin(time)*5.0);
+	lights[0].color = vec3(1.0, 0.5, 0.0);
+	lights[0].energy = 1000.0;
+	lights[1].pos = vec3(0.0, 10.0, 0.0);
 	lights[1].color = vec3(1.0, 1.0, 1.0);
-	lights[1].energy = 75.0; 
+	lights[1].energy = 1000.0; 
 
 	float roughness = 0.05;
-	float fresnel = 1.6;
+	float fresnel = 0.04;
 	vec3 final = vec3(0.0);
-	vec3 viewDirection = normalize(camera_world_pos - world_pos); //direction to camera from frag
+	vec3 viewDirection = normalize(-view_pos); //direction to camera from frag
 	vec3 diffuse = vec3(0.0);
 	vec3 specular = vec3(0.0);
 
 	vec3 upleft;
 	
 	for (int i = 0; i < n_lights; i++) {
-		vec3 lightDirection = normalize(lights[i].pos - world_pos); //direction to light
-		float dist_to_light = length(lights[i].pos - world_pos);
-		float energy = lights[i].energy/(dist_to_light);
+		vec3 lightvpos = (V*vec4(lights[i].pos,1.0)).xyz;
+		vec3 lightDirection = normalize(lightvpos - view_pos); //direction to light
+		float dist_to_light = length(lightvpos - view_pos);
+		float energy = lights[i].energy/(1.0+dist_to_light*dist_to_light);
 		
 		float ctSpec = cookTorranceSpecular
 		(
@@ -422,21 +433,22 @@ void main()
 
 		diffuse += ONDiffuse * remainingEnergy * lights[i].color;
 		specular += ctSpec * energy * lights[i].color;
+		upleft = lightDirection;
 	}
 	
 	final = diffuse + specular;
 	final *= hasObject;
 	final = final/(final + vec3(1.0));
 	
-	upleft = specular * hasObject;
-	//upleft = vec3(depth);
-	
-	//upleft = normal;
-	// QUAD SPLIT VIEW
-	color =  (diffuse * hasObject) * (1.0-step(0.5, screen_pos.y)) * (1.0 - step(0.5, screen_pos.x)); //LOWER LEFT
-	color += (normalColor) * (1.0 - step(0.5, screen_pos.y)) * step(0.5, screen_pos.x); //LOWER RIGHT
-	color += (upleft) * step(0.5, screen_pos.y) * (1.0 - step(0.5, screen_pos.x)); //UPPER LEFT
-	color += (final) * step(0.5, screen_pos.y) * step(0.5, screen_pos.x); //UPPER RIGHT
+	upleft *= hasObject;
 
+	
+	// QUAD SPLIT VIEW
+	//color =  (diffuse * hasObject) * (1.0-step(0.5, screen_pos.y)) * (1.0 - step(0.5, screen_pos.x)); //LOWER LEFT
+	//color += (normalColor) * (1.0 - step(0.5, screen_pos.y)) * step(0.5, screen_pos.x); //LOWER RIGHT
+	//color += (upleft) * step(0.5, screen_pos.y) * (1.0 - step(0.5, screen_pos.x)); //UPPER LEFT
+	//color += (final) * step(0.5, screen_pos.y) * step(0.5, screen_pos.x); //UPPER RIGHT
+
+	color = final;
 	return;
 }

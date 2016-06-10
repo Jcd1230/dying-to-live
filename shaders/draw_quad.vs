@@ -13,6 +13,6 @@ void main()
 {
 	screen_pos = v_uv.xy;
 	lowp vec4 v = vec4(vp_modelspace, 1.0);
-
+	//v.xy += rect_offset;
 	gl_Position = v;
 }

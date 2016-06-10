@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 	initSDL(&sdl_info);
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 	SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_MODE_WARP, "1");
-	
+
 
 
 	printf("Loading shaders\n");
@@ -41,13 +41,13 @@ int main(int argc, char *argv[])
 	kmVec3 cam_lookat = { 0.0, 0.0, 0.0 };
 
 	kmVec3 cam_up = { 0.0, 0.0, 1.0 };
-	
+
 	struct mesh meshes[1];
 	int n_meshes = 1;
 	printf("Loading mesh..\n");
 	loadmesh("../test.obj", &meshes[0]);
 	printf("Loaded mesh..\n");
-	
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glUseProgram(programID);
 
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 	kmMat4 model = iden;
 	kmMat4 view;
 	kmMat4 projection = iden;
-	
+
 	kmMat4Translation(&model_translate, 0,0,0);
 	kmMat4Scaling(&model_scale, 1.0,1.0,1.0);
 	kmMat4RotationYawPitchRoll(&model_rotate, 0, 0, 0);
@@ -69,13 +69,13 @@ int main(int argc, char *argv[])
 	kmMat4Multiply(&model, &model_rotate, &model);
 	kmMat4Multiply(&model, &model_scale, &model);
 	kmMat4Multiply(&model, &model_translate, &model);
-	
+
 	kmMat4 mvp = iden;
 
 	kmMat4Multiply(&mvp, &model, &mvp);
 	kmMat4Multiply(&mvp, &view, &mvp);
 	kmMat4Multiply(&mvp, &projection, &mvp);
-	
+
 
 	GLuint tex_2d = SOIL_load_OGL_texture
 		(
@@ -90,17 +90,17 @@ int main(int argc, char *argv[])
 	glUniformMatrix4fv(matID, 1, GL_FALSE, (const GLfloat *)&mvp.mat[0]);
 
 	GLuint timeID = glGetUniformLocation(programID, "time");
-	
+
 	GLuint diffuse_loc = glGetUniformLocation(programID, "diffuse_color");
 	glUniform1i(diffuse_loc, 0);
-	
+
 	GLuint sampler;
 	glGenSamplers(1, &sampler);
 /*	glSamplerParameteri(sampler,
-	glSamplerParameteri(sampler, GL_TEXTURE_, 
-	glSamplerParameteri(sampler, GL_TEXTURE_, 
-	glSamplerParameteri(sampler, GL_TEXTURE_, 
-	glSamplerParameteri(sampler, GL_TEXTURE_, 
+	glSamplerParameteri(sampler, GL_TEXTURE_,
+	glSamplerParameteri(sampler, GL_TEXTURE_,
+	glSamplerParameteri(sampler, GL_TEXTURE_,
+	glSamplerParameteri(sampler, GL_TEXTURE_,
 */
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex_2d);
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 	kmVec3 cam_forward;
 	kmVec3 cam_right;
 	kmVec3 cam_motion = {0, 0, 0};
-	
+
 	keystate.w = 0;
 	keystate.a = 0;
 	keystate.s = 0;
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
 		ticks_cur = SDL_GetPerformanceCounter();
 		curtime = (ticks_cur - ticks_start)/(float)ticks_per_sec;
 		//printf("%lld\t%lld\t%.4f\n", ticks_cur, ticks_per_sec, curtime);
-		
+
 		frames_last++;
 		if (ticks_cur > ticks_last + ticks_per_sec) {
 			printf("FPS: %.2f\n", (float)frames_last*(float)(ticks_cur - ticks_last)/(float)ticks_per_sec);
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 			frames_last = 0;
 		}
 		glUniform1f(timeID, curtime);
-		
+
 		kmQuaternionRotationPitchYawRoll(&cam_angle, cam.pitch, cam.yaw, 0.0f);
 		kmQuaternionGetForwardVec3RH(&cam_forward, &cam_angle);
 		kmQuaternionGetUpVec3(&cam_up, &cam_angle);
@@ -176,10 +176,10 @@ int main(int argc, char *argv[])
 		kmMat4Multiply(&mvp, &model, &mvp);
 		kmMat4Multiply(&mvp, &view, &mvp);
 		kmMat4Multiply(&mvp, &projection, &mvp);
-		
+
 		kmMat4 mvpinv = mvp;
 		kmMat4Inverse(&mvpinv, &mvp);
-		
+
 		glUniformMatrix4fv(matInvID, 1, GL_FALSE, (const GLfloat *)&mvpinv.mat[0]);
 		glUniformMatrix4fv(matID, 1, GL_FALSE, (const GLfloat *)&mvp.mat[0]);
 		int i;
@@ -188,9 +188,9 @@ int main(int argc, char *argv[])
 			curmesh = &meshes[i];
 			glBindVertexArray(curmesh->vao);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, curmesh->element_buffer);
-			glDrawElements(GL_TRIANGLES, 
-					curmesh->n_indices, 
-					GL_UNSIGNED_INT, 
+			glDrawElements(GL_TRIANGLES,
+					curmesh->n_indices,
+					GL_UNSIGNED_INT,
 					(void*)0);
 
 		}

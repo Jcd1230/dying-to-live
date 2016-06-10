@@ -2,6 +2,8 @@ local class = require("30log")
 local ffi = require("ffi")
 local model = require("model")
 local km = require("km")
+local texture = require("texture")
+
 local _M = class("Entity")
 
 local entities = {}
@@ -11,7 +13,8 @@ function _M.getAll()
 end
 
 function _M:init()
-	self.model = model.getModel("error.x")
+	self:setModel("error.x")
+	self.tex_diffuse = texture.getTextureID("error.png")
 	self.pos = { x = 0, y = 0, z = 0}
 	self.rot = { p = 0, y = 0, r = 0}
 	self.matrix = km.mat4.iden(km.mat4())
@@ -56,6 +59,13 @@ end
 
 function _M:setModel(modelpath)
 	self.mesh = model.getModel(modelpath)
+	self.modelpath = modelpath
+	return self
+end
+
+function _M:setDiffuse(texturepath)
+	self.tex_diffuse = texture.getTextureID(texturepath)
+	self.tex_diffuse_path = texturepath
 	return self
 end
 
